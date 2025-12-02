@@ -16,6 +16,7 @@ import pynini
 from pynini.lib import pynutil
 
 from nemo_text_processing.text_normalization.hi.graph_utils import (
+    NEMO_DIGIT,
     NEMO_HI_DIGIT,
     NEMO_HI_NON_ZERO,
     NEMO_HI_ZERO,
@@ -23,6 +24,13 @@ from nemo_text_processing.text_normalization.hi.graph_utils import (
     insert_space,
 )
 from nemo_text_processing.text_normalization.hi.utils import get_abs_path
+
+# Convert Arabic digits (0-9) to Hindi digits (०-९)
+arabic_to_hindi_digit = pynini.string_map([
+    ("0", "०"), ("1", "१"), ("2", "२"), ("3", "३"), ("4", "४"),
+    ("5", "५"), ("6", "६"), ("7", "७"), ("8", "८"), ("9", "९")
+]).optimize()
+arabic_to_hindi_number = pynini.closure(arabic_to_hindi_digit).optimize()
 
 days = pynini.string_file(get_abs_path("data/date/days.tsv"))
 months = pynini.string_file(get_abs_path("data/date/months.tsv"))
@@ -58,12 +66,42 @@ class DateFst(GraphFst):
     def __init__(self, cardinal: GraphFst):
         super().__init__(name="date", kind="classify")
 
-        graph_year_thousands = pynini.compose(
-            (NEMO_HI_DIGIT + NEMO_HI_ZERO + NEMO_HI_DIGIT + NEMO_HI_DIGIT), cardinal.graph_thousands
+        # Support both Hindi and Arabic digits for dates
+        # Year patterns: 4-digit years (e.g., 2024, २०२४)
+        # Pattern for thousands: X0XX (e.g., 2024 -> 2०24)
+        # Pattern for hundreds: X1-9XX (e.g., 1999 -> 1९99)
+        
+        # Year pattern definitions
+        year_pattern_thousands = (NEMO_HI_DIGIT + NEMO_HI_ZERO + NEMO_HI_DIGIT + NEMO_HI_DIGIT)
+        year_pattern_hundreds = (NEMO_HI_DIGIT + NEMO_HI_NON_ZERO + NEMO_HI_DIGIT + NEMO_HI_DIGIT)
+        
+        # Hindi digits for year patterns
+        hindi_year_thousands = pynini.compose(
+            year_pattern_thousands, cardinal.graph_thousands
         )
-        graph_year_hundreds_as_thousands = pynini.compose(
-            (NEMO_HI_DIGIT + NEMO_HI_NON_ZERO + NEMO_HI_DIGIT + NEMO_HI_DIGIT), cardinal.graph_hundreds_as_thousand
+        hindi_year_hundreds_as_thousands = pynini.compose(
+            year_pattern_hundreds, cardinal.graph_hundreds_as_thousand
         )
+        
+        # Arabic digits for year patterns - convert to Hindi first
+        # Convert 4-digit Arabic year (e.g., "2024") to Hindi ("२०२४"), then match patterns
+        arabic_year_4digits = (NEMO_DIGIT + NEMO_DIGIT + NEMO_DIGIT + NEMO_DIGIT)
+        # Convert Arabic to Hindi
+        arabic_to_hindi_year = arabic_year_4digits @ arabic_to_hindi_number
+        
+        # Match converted Hindi year against patterns and compose with cardinal
+        arabic_year_thousands = pynini.compose(
+            arabic_to_hindi_year,
+            pynini.compose(year_pattern_thousands, cardinal.graph_thousands)
+        )
+        arabic_year_hundreds_as_thousands = pynini.compose(
+            arabic_to_hindi_year,
+            pynini.compose(year_pattern_hundreds, cardinal.graph_hundreds_as_thousand)
+        )
+        
+        # Combined year graphs (supports both Hindi and Arabic digits)
+        graph_year_thousands = hindi_year_thousands | arabic_year_thousands
+        graph_year_hundreds_as_thousands = hindi_year_hundreds_as_thousands | arabic_year_hundreds_as_thousands
 
         cardinal_graph = pynini.union(
             digit, teens_and_ties, cardinal.graph_hundreds, graph_year_thousands, graph_year_hundreds_as_thousands
@@ -74,9 +112,31 @@ class DateFst(GraphFst):
         delete_dash = pynutil.delete("-")
         delete_slash = pynutil.delete("/")
 
-        days_graph = pynutil.insert("day: \"") + days + pynutil.insert("\"") + insert_space
-
-        months_graph = pynutil.insert("month: \"") + months + pynutil.insert("\"") + insert_space
+        # Support both Hindi and Arabic digits for days and months
+        # Hindi digits path: Hindi digits -> days/months mapping
+        hindi_days_graph = pynutil.insert("day: \"") + days + pynutil.insert("\"") + insert_space
+        hindi_months_graph = pynutil.insert("month: \"") + months + pynutil.insert("\"") + insert_space
+        
+        # Arabic digits path: Arabic digits -> convert to Hindi -> days/months mapping
+        # Day pattern: 1-31 (can have leading zero: 01-09, or no leading zero: 1-31)
+        # Match 1-2 digit Arabic numbers
+        arabic_day_input = pynini.closure(NEMO_DIGIT, 1, 2)
+        arabic_days_graph = pynutil.insert("day: \"") + pynini.compose(
+            arabic_day_input,
+            arabic_to_hindi_number @ days
+        ) + pynutil.insert("\"") + insert_space
+        
+        # Month pattern: 1-12 (can have leading zero: 01-09, or no leading zero: 1-12)
+        # Match 1-2 digit Arabic numbers
+        arabic_month_input = pynini.closure(NEMO_DIGIT, 1, 2)
+        arabic_months_graph = pynutil.insert("month: \"") + pynini.compose(
+            arabic_month_input,
+            arabic_to_hindi_number @ months
+        ) + pynutil.insert("\"") + insert_space
+        
+        # Combined graphs (supports both Hindi and Arabic digits)
+        days_graph = hindi_days_graph | arabic_days_graph
+        months_graph = hindi_months_graph | arabic_months_graph
 
         years_graph = pynutil.insert("year: \"") + graph_year + pynutil.insert("\"") + insert_space
 
@@ -91,8 +151,19 @@ class DateFst(GraphFst):
 
         range_graph = pynini.cross("-", "से")
 
-        # Graph for year
-        century_number = pynini.compose(pynini.closure(NEMO_HI_DIGIT, 1), cardinal_graph) + pynini.accep("वीं")
+        # Graph for year - support both Hindi and Arabic digits
+        # Hindi digits path
+        hindi_century_input = pynini.closure(NEMO_HI_DIGIT, 1)
+        hindi_century_number = pynini.compose(hindi_century_input, cardinal_graph) + pynini.accep("वीं")
+        
+        # Arabic digits path
+        arabic_century_input = pynini.closure(NEMO_DIGIT, 1)
+        arabic_century_number = pynini.compose(
+            arabic_century_input,
+            arabic_to_hindi_number @ cardinal_graph
+        ) + pynini.accep("वीं")
+        
+        century_number = hindi_century_number | arabic_century_number
         century_text = pynutil.insert("era: \"") + century_number + pynutil.insert("\"") + insert_space
 
         # Updated logic to use suffix_union

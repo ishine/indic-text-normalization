@@ -45,7 +45,7 @@ class VerbalizeFst(GraphFst):
         decimal = DecimalFst(deterministic=deterministic)
         decimal_graph = decimal.fst
 
-        fraction = FractionFst(cardinal=cardinal, deterministic=deterministic)
+        fraction = FractionFst(deterministic=deterministic)
         fraction_graph = fraction.fst
 
         date = DateFst()

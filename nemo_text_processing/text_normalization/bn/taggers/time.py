@@ -18,6 +18,7 @@ from pynini.lib import pynutil
 from nemo_text_processing.text_normalization.bn.graph_utils import (
     NEMO_DIGIT,
     NEMO_BN_DIGIT,
+    NEMO_SPACE,
     GraphFst,
     insert_space,
 )
@@ -30,6 +31,17 @@ arabic_to_bengali_digit = pynini.string_map([
 ]).optimize()
 arabic_to_bengali_number = pynini.closure(arabic_to_bengali_digit).optimize()
 
+# Pad single digit to two digits (prepend 0)
+pad_single_digit_bengali = (
+    (pynutil.insert("০") + NEMO_BN_DIGIT)  # single digit -> prepend ০
+).optimize()
+pad_single_digit_arabic = (
+    (pynutil.insert("0") + NEMO_DIGIT)  # single digit -> prepend 0
+).optimize()
+
+# Bengali time patterns
+BN_DOUBLE_ZERO = "০০"
+
 hours_graph = pynini.string_file(get_abs_path("data/time/hours.tsv"))
 minutes_graph = pynini.string_file(get_abs_path("data/time/minutes.tsv"))
 seconds_graph = pynini.string_file(get_abs_path("data/time/seconds.tsv"))
@@ -41,6 +53,8 @@ class TimeFst(GraphFst):
         ১২:৩০:৩০  -> time { hours: "বারো" minutes: "ত্রিশ" seconds: "ত্রিশ" }
         ১:৪০  -> time { hours: "এক" minutes: "চল্লিশ" }
         ১:০০  -> time { hours: "এক" }
+        12:30  -> time { hours: "বারো" minutes: "ত্রিশ" }
+        09:05  -> time { hours: "নয়" minutes: "পাঁচ" }
 
     Args:
         time: GraphFst
@@ -52,90 +66,88 @@ class TimeFst(GraphFst):
         super().__init__(name="time", kind="classify")
 
         delete_colon = pynutil.delete(":")
-        cardinal_graph = cardinal.digit | cardinal.teens_and_ties
 
-        # Support both Bengali and Arabic digits for hours (1-2 digits: 0-23)
-        bengali_hour_path = pynini.compose(pynini.closure(NEMO_BN_DIGIT, 1, 2), hours_graph).optimize()
+        # Hours: accept 1 or 2 Bengali digits, pad single digit with leading zero
+        bengali_hour_2digit = pynini.closure(NEMO_BN_DIGIT, 2, 2)  # 2 digits: use as-is
+        bengali_hour_1digit = pad_single_digit_bengali  # 1 digit: prepend ০
+        bengali_hour_input = bengali_hour_2digit | bengali_hour_1digit
+        bengali_hour_path = pynini.compose(bengali_hour_input, hours_graph).optimize()
+
+        # Hours: accept 1 or 2 Arabic digits, pad single digit, then convert to Bengali
+        arabic_hour_2digit = pynini.closure(NEMO_DIGIT, 2, 2)  # 2 digits: use as-is
+        arabic_hour_1digit = pad_single_digit_arabic  # 1 digit: prepend 0
+        arabic_hour_input = arabic_hour_2digit | arabic_hour_1digit
         arabic_hour_path = pynini.compose(
-            pynini.closure(NEMO_DIGIT, 1, 2), 
+            arabic_hour_input,
             arabic_to_bengali_number @ hours_graph
         ).optimize()
+        
         hour_input = bengali_hour_path | arabic_hour_path
 
-        # Minutes: support both 1 and 2 digits (0-59)
-        # For 2 digits, use minutes_graph directly
-        bengali_minute_two = pynini.compose(
-            pynini.closure(NEMO_BN_DIGIT, 2, 2), 
-            minutes_graph
+        # Minutes: accept 1 or 2 Bengali digits, pad single digit with leading zero
+        bengali_minute_2digit = pynini.closure(NEMO_BN_DIGIT, 2, 2)
+        bengali_minute_1digit = pad_single_digit_bengali
+        bengali_minute_input = bengali_minute_2digit | bengali_minute_1digit
+        bengali_minute_path = pynini.compose(bengali_minute_input, minutes_graph).optimize()
+
+        arabic_minute_2digit = pynini.closure(NEMO_DIGIT, 2, 2)
+        arabic_minute_1digit = pad_single_digit_arabic
+        arabic_minute_input = arabic_minute_2digit | arabic_minute_1digit
+        arabic_minute_path = pynini.compose(
+            arabic_minute_input,
+            arabic_to_bengali_number @ minutes_graph
         ).optimize()
-        # For 1 digit, convert to Bengali and use cardinal
-        bengali_minute_one = pynini.compose(
-            pynini.closure(NEMO_BN_DIGIT, 1, 1),
-            cardinal_graph
-        ).optimize()
-        bengali_minute_path = bengali_minute_two | bengali_minute_one
         
-        # Create a converter for exactly 2 digits
-        arabic_to_bengali_two_digits = (
-            arabic_to_bengali_digit + arabic_to_bengali_digit
-        ).optimize()
-        arabic_minute_two = pynini.compose(
-            pynini.closure(NEMO_DIGIT, 2, 2),
-            arabic_to_bengali_two_digits @ minutes_graph
-        ).optimize()
-        arabic_minute_one = pynini.compose(
-            pynini.closure(NEMO_DIGIT, 1, 1),
-            arabic_to_bengali_number @ cardinal_graph
-        ).optimize()
-        arabic_minute_path = arabic_minute_two | arabic_minute_one
         minute_input = bengali_minute_path | arabic_minute_path
 
-        # Seconds: support both 1 and 2 digits (0-59)
-        # For 2 digits, use seconds_graph directly
-        bengali_second_two = pynini.compose(
-            pynini.closure(NEMO_BN_DIGIT, 2, 2), 
-            seconds_graph
+        # Seconds: accept 1 or 2 Bengali digits, pad single digit with leading zero
+        bengali_second_2digit = pynini.closure(NEMO_BN_DIGIT, 2, 2)
+        bengali_second_1digit = pad_single_digit_bengali
+        bengali_second_input = bengali_second_2digit | bengali_second_1digit
+        bengali_second_path = pynini.compose(bengali_second_input, seconds_graph).optimize()
+
+        arabic_second_2digit = pynini.closure(NEMO_DIGIT, 2, 2)
+        arabic_second_1digit = pad_single_digit_arabic
+        arabic_second_input = arabic_second_2digit | arabic_second_1digit
+        arabic_second_path = pynini.compose(
+            arabic_second_input,
+            arabic_to_bengali_number @ seconds_graph
         ).optimize()
-        # For 1 digit, convert to Bengali and use cardinal
-        bengali_second_one = pynini.compose(
-            pynini.closure(NEMO_BN_DIGIT, 1, 1),
-            cardinal_graph
-        ).optimize()
-        bengali_second_path = bengali_second_two | bengali_second_one
         
-        arabic_second_two = pynini.compose(
-            pynini.closure(NEMO_DIGIT, 2, 2),
-            arabic_to_bengali_two_digits @ seconds_graph
-        ).optimize()
-        arabic_second_one = pynini.compose(
-            pynini.closure(NEMO_DIGIT, 1, 1),
-            arabic_to_bengali_number @ cardinal_graph
-        ).optimize()
-        arabic_second_path = arabic_second_two | arabic_second_one
         second_input = bengali_second_path | arabic_second_path
 
         self.hours = pynutil.insert("hours: \"") + hour_input + pynutil.insert("\" ")
         self.minutes = pynutil.insert("minutes: \"") + minute_input + pynutil.insert("\" ")
         self.seconds = pynutil.insert("seconds: \"") + second_input + pynutil.insert("\" ")
 
+        # Optional "টায়" after time (to avoid duplication when verbalizer adds it)
+        optional_tay = pynini.closure(
+            pynini.closure(NEMO_SPACE, 0, 1) + pynutil.delete("টায়"), 0, 1
+        ).optimize()
+
         # hour minute seconds
         graph_hms = (
-            self.hours + delete_colon + insert_space + self.minutes + delete_colon + insert_space + self.seconds
+            self.hours + delete_colon + insert_space + self.minutes + delete_colon + insert_space + self.seconds + optional_tay
         )
 
-        # hour minute
-        graph_hm = self.hours + delete_colon + insert_space + self.minutes
+        # hour minute - NORMAL FORMAT
+        graph_hm = self.hours + delete_colon + insert_space + self.minutes + optional_tay
 
-        # hour - support both Bengali and Arabic double zero
-        bengali_double_zero = pynutil.delete("০০")
+        # hour only (HH:00) - support both Bengali and Arabic double zero
         arabic_double_zero = pynutil.delete("00")
-        double_zero = bengali_double_zero | arabic_double_zero
-        graph_h = self.hours + delete_colon + double_zero
+        graph_h = (
+            self.hours
+            + delete_colon
+            + (pynutil.delete(BN_DOUBLE_ZERO) | arabic_double_zero)
+            + optional_tay
+        )
 
+        # Simple weight ordering: HMS first, then HM, then H only
+        # Lower weight = higher priority in pynini
         final_graph = (
-            graph_hms
-            | pynutil.add_weight(graph_hm, 0.3)
-            | pynutil.add_weight(graph_h, 0.3)
+            pynutil.add_weight(graph_hms, -0.1)  # Highest priority
+            | pynutil.add_weight(graph_hm, -0.05)  # Second priority
+            | graph_h  # Default weight (0)
         )
 
         final_graph = self.add_tokens(final_graph)

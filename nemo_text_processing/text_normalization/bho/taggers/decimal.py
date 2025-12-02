@@ -15,17 +15,28 @@
 import pynini
 from pynini.lib import pynutil
 
-from nemo_text_processing.text_normalization.bho.graph_utils import GraphFst, insert_space
+from nemo_text_processing.text_normalization.bho.graph_utils import (
+    GraphFst,
+    NEMO_DIGIT,
+    insert_space,
+)
 from nemo_text_processing.text_normalization.bho.utils import get_abs_path
 
 quantities = pynini.string_file(get_abs_path("data/numbers/thousands.tsv"))
+
+# Convert Arabic digits (0-9) to Bhojpuri digits (०-९) - Devanagari script
+arabic_to_bhojpuri_digit = pynini.string_map([
+    ("0", "०"), ("1", "१"), ("2", "२"), ("3", "३"), ("4", "४"),
+    ("5", "५"), ("6", "६"), ("7", "७"), ("8", "८"), ("9", "९")
+]).optimize()
+arabic_to_bhojpuri_number = pynini.closure(arabic_to_bhojpuri_digit).optimize()
 
 
 def get_quantity(decimal: 'pynini.FstLike', cardinal_up_to_hundred: 'pynini.FstLike') -> 'pynini.FstLike':
     """
     Returns FST that transforms either a cardinal or decimal followed by a quantity into a numeral,
-    e.g. १ இலட்சம் -> integer_part: "ஒன்று" quantity: "இலட்சம்"
-    e.g. १.५ இலட்சம் -> integer_part: "ஒன்று" fractional_part: "ஐந்து" quantity: "இலட்சம்"
+    e.g. १ लाख -> integer_part: "एक" quantity: "लाख"
+    e.g. १.५ लाख -> integer_part: "एक" fractional_part: "पाँच" quantity: "लाख"
 
     Args:
         decimal: decimal FST
@@ -49,8 +60,8 @@ def get_quantity(decimal: 'pynini.FstLike', cardinal_up_to_hundred: 'pynini.FstL
 class DecimalFst(GraphFst):
     """
     Finite state transducer for classifying decimal, e.g.
-        -१२.५००६ கோடி -> decimal { negative: "true" integer_part: "பன்னிரண்டு"  fractional_part: "ஐந்து பூஜ்யம் பூஜ்யம் ஆறு" quantity: "கோடி" }
-        १ கோடி -> decimal { integer_part: "ஒன்று" quantity: "கோடி" }
+        -१२.५००६ करोड़ -> decimal { negative: "true" integer_part: "बारह"  fractional_part: "पाँच शून्य शून्य छह" quantity: "करोड़" }
+        १ करोड़ -> decimal { integer_part: "एक" quantity: "करोड़" }
 
     cardinal: CardinalFst
     """
@@ -61,7 +72,15 @@ class DecimalFst(GraphFst):
         graph_digit = cardinal.digit | cardinal.zero
         cardinal_graph = cardinal.final_graph
 
-        self.graph = graph_digit + pynini.closure(insert_space + graph_digit).optimize()
+        # Bhojpuri digit sequence: Bhojpuri digits → words with spaces
+        bhojpuri_digit_sequence = (graph_digit + pynini.closure(insert_space + graph_digit)).optimize()
+        # Arabic digit sequence: Arabic digits → convert to Bhojpuri → apply same sequence
+        arabic_digit_input = pynini.closure(NEMO_DIGIT, 1)
+        arabic_digit_sequence = pynini.compose(
+            arabic_digit_input,
+            arabic_to_bhojpuri_number @ bhojpuri_digit_sequence,
+        ).optimize()
+        self.graph = (bhojpuri_digit_sequence | arabic_digit_sequence).optimize()
 
         # Handle both "." and "," as decimal separators (common in Indian number systems)
         point = pynutil.delete(pynini.union(".", ","))
@@ -73,8 +92,11 @@ class DecimalFst(GraphFst):
         )
 
         self.graph_fractional = pynutil.insert("fractional_part: \"") + self.graph + pynutil.insert("\"")
+        # Integer part uses cardinal_graph directly (already handles both Bhojpuri and Arabic digits)
         self.graph_integer = pynutil.insert("integer_part: \"") + cardinal_graph + pynutil.insert("\"")
 
+        # Pattern: integer_part + decimal_point + fractional_part
+        # This handles both Bhojpuri digits (e.g., १२.३४) and Arabic digits (e.g., 12.34)
         final_graph_wo_sign = self.graph_integer + point + insert_space + self.graph_fractional
 
         self.final_graph_wo_negative = final_graph_wo_sign | get_quantity(final_graph_wo_sign, cardinal_graph)

@@ -21,8 +21,8 @@ from nemo_text_processing.text_normalization.bho.graph_utils import MINUS, NEMO_
 class FractionFst(GraphFst):
     """
     Finite state transducer for verbalizing fraction
-        e.g. fraction { integer: "तेईस" numerator: "चार" denominator: "छः" }-> तेईस चार बटा छः
-        e.g. fraction { numerator: "चार" denominator: "छः" } -> चार बटा छः
+        e.g. fraction { integer_part: "तेईस" numerator: "चार" denominator: "छह" } -> तेईस और चार बटा छह
+        e.g. fraction { numerator: "चार" denominator: "छह" } -> चार बटा छह
 
 
     Args:
@@ -30,7 +30,7 @@ class FractionFst(GraphFst):
             for False multiple transduction are generated (used for audio-based normalization)
     """
 
-    def __init__(self, cardinal: GraphFst, deterministic: bool = True):
+    def __init__(self, deterministic: bool = True):
         super().__init__(name="fraction", kind="verbalize", deterministic=deterministic)
 
         optional_sign = pynini.closure(pynini.cross("negative: \"true\"", MINUS) + pynutil.delete(" "), 0, 1)
@@ -42,17 +42,14 @@ class FractionFst(GraphFst):
         # Bhojpuri words: "बटा" for "divided by" and "और" for "and"
         insert_bata = pynutil.insert(" बटा ")
         insert_aur = pynutil.insert(" और ")
-        graph_quarter = (
-            pynutil.delete("morphosyntactic_features: \"") + pynini.closure(NEMO_NOT_QUOTE, 1) + pynutil.delete("\"")
-        )
 
         fraction_default = numerator + insert_bata + denominator
 
         self.graph = (
             optional_sign
-            + pynini.closure(pynini.closure(integer, 0, 1) + insert_space + insert_aur)
+            + pynini.closure(integer + insert_aur, 0, 1)
             + fraction_default
-        ) | graph_quarter
+        )
 
         graph = self.graph
 

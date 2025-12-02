@@ -92,7 +92,7 @@ class CardinalFst(GraphFst):
         graph_150 = pynini.cross("१५०", "एक सौ पचास")
         graph_160 = pynini.cross("१६०", "एक सौ साठ")
         graph_170 = pynini.cross("१७०", "एक सौ सत्तर")
-        graph_180 = pynini.cross("१৮०", "நூற்றெண்பது")
+        graph_180 = pynini.cross("१८०", "एक सौ अस्सी")
         graph_190 = pynini.cross("१९०", "एक सौ नब्बे")
         graph_150_190 = graph_150 | graph_160 | graph_170 | graph_180 | graph_190
         

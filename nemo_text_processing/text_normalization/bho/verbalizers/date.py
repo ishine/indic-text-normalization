@@ -21,8 +21,8 @@ from nemo_text_processing.text_normalization.bho.graph_utils import NEMO_NOT_QUO
 class DateFst(GraphFst):
     """
     Finite state transducer for verbalizing date, e.g.
-        date { day: "ಒಂದು" month: "ಏಪ್ರಿಲ್" year: "ಎರಡು ಸಾವಿರ ಇಪ್ಪತ್ತನಾಲ್ಕು" } -> "ಒಂದು ಏಪ್ರಿಲ್ ಎರಡು ಸಾವಿರ ಇಪ್ಪತ್ತನಾಲ್ಕು"
-        date { month: "ಏಪ್ರಿಲ್" day: "ಒಂದು" year: "ಎರಡು ಸಾವಿರ ಇಪ್ಪತ್ತನಾಲ್ಕು" } -> "ಏಪ್ರಿಲ್ ಒಂದು ಎರಡು ಸಾವಿರ ಇಪ್ಪತ್ತನಾಲ್ಕು"
+        date { day: "एक" month: "अप्रैल" year: "दो हजार चौबीस" } -> "एक अप्रैल दो हजार चौबीस"
+        date { month: "अप्रैल" day: "एक" year: "दो हजार चौबीस" } -> "अप्रैल एक दो हजार चौबीस"
 
 
     Args:
@@ -51,6 +51,9 @@ class DateFst(GraphFst):
 
         graph_mm_yyyy = month + NEMO_SPACE + year
 
+        # YYYY-MM-DD format
+        graph_yyyy_mm_dd = year + NEMO_SPACE + month + NEMO_SPACE + day
+
         optional_preserve_order = pynini.closure(
             pynutil.delete("preserve_order:") + delete_space + pynutil.delete("true") + delete_space
             | pynutil.delete("field_order:")
@@ -62,7 +65,7 @@ class DateFst(GraphFst):
         )
 
         self.graph = (
-            (graph_dd_mm | graph_mm_dd | graph_dd_mm_yyyy | graph_mm_dd_yyyy | graph_mm_yyyy | graph_era)
+            (graph_dd_mm | graph_mm_dd | graph_dd_mm_yyyy | graph_mm_dd_yyyy | graph_mm_yyyy | graph_yyyy_mm_dd | graph_era)
             + delete_space
             + optional_preserve_order
         )

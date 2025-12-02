@@ -19,6 +19,7 @@ from nemo_text_processing.text_normalization.ta.graph_utils import (
     NEMO_TA_ZERO,
     NEMO_DIGIT,
     NEMO_TA_DIGIT,
+    NEMO_TA_NON_ZERO,
     TA_DEDH,
     TA_DHAI,
     TA_PAUNE,
@@ -72,13 +73,25 @@ class TimeFst(GraphFst):
         delete_colon = pynutil.delete(":")
         cardinal_graph = cardinal.digit | cardinal.teens_and_ties
 
+        # Delete optional leading zero (handles inputs like 09, 07, 00)
+        delete_leading_zero_tamil = (
+            (NEMO_TA_NON_ZERO + NEMO_TA_DIGIT)  # keep 10-99 as-is
+            | (pynutil.delete(NEMO_TA_ZERO) + NEMO_TA_DIGIT)  # drop leading zero for 00-09
+            | NEMO_TA_DIGIT  # allow single-digit inputs
+        ).optimize()
+        delete_leading_zero_arabic = (
+            (pynini.difference(NEMO_DIGIT, "0") + NEMO_DIGIT)  # keep 10-99 as-is
+            | (pynutil.delete("0") + NEMO_DIGIT)  # drop leading zero for 00-09
+            | NEMO_DIGIT  # allow single-digit inputs
+        ).optimize()
+
         # Support both Tamil and Arabic digits for hours and minutes
         # Create combined graphs that accept both Arabic and Tamil digits
-        # Tamil digits path: Tamil digits -> hours_graph
-        tamil_hour_path = pynini.compose(pynini.closure(NEMO_TA_DIGIT, 1), hours_graph).optimize()
-        # Arabic digits path: Arabic digits -> convert to Tamil -> hours_graph
+        # Tamil digits path: delete optional leading zero -> hours_graph
+        tamil_hour_path = pynini.compose(delete_leading_zero_tamil, hours_graph).optimize()
+        # Arabic digits path: delete optional leading zero -> convert to Tamil -> hours_graph
         arabic_hour_path = pynini.compose(
-            pynini.closure(NEMO_DIGIT, 1), 
+            delete_leading_zero_arabic,
             arabic_to_tamil_number @ hours_graph
         ).optimize()
         hour_input = tamil_hour_path | arabic_hour_path
@@ -116,18 +129,36 @@ class TimeFst(GraphFst):
         graph_hm = self.hours + delete_colon + insert_space + self.minutes + optional_manikku
 
         # hour
-        graph_h = self.hours + delete_colon + pynutil.delete(TA_DOUBLE_ZERO) + optional_manikku
+        arabic_double_zero = pynutil.delete("00")
+        graph_h = (
+            self.hours
+            + delete_colon
+            + (pynutil.delete(TA_DOUBLE_ZERO) | arabic_double_zero)
+            + optional_manikku
+        )
 
-        dedh_dhai_graph = pynini.string_map([("௧" + TA_TIME_THIRTY, TA_DEDH), ("௨" + TA_TIME_THIRTY, TA_DHAI)])
+        dedh_dhai_graph = (
+            pynini.string_map([("௧" + TA_TIME_THIRTY, TA_DEDH), ("௨" + TA_TIME_THIRTY, TA_DHAI)])
+            | pynini.string_map([("1" + AR_TIME_THIRTY, TA_DEDH), ("2" + AR_TIME_THIRTY, TA_DHAI)])
+        )
 
-        savva_numbers = cardinal_graph + pynini.cross(TA_TIME_FIFTEEN, "")
+        savva_numbers = (
+            cardinal_graph + pynini.cross(TA_TIME_FIFTEEN, "")
+            | cardinal_graph + pynini.cross(AR_TIME_FIFTEEN, "")
+        )
         savva_graph = pynutil.insert(TA_SAVVA) + pynutil.insert(NEMO_SPACE) + savva_numbers
 
-        sadhe_numbers = cardinal_graph + pynini.cross(TA_TIME_THIRTY, "")
+        sadhe_numbers = (
+            cardinal_graph + pynini.cross(TA_TIME_THIRTY, "")
+            | cardinal_graph + pynini.cross(AR_TIME_THIRTY, "")
+        )
         sadhe_graph = pynutil.insert(TA_SADHE) + pynutil.insert(NEMO_SPACE) + sadhe_numbers
 
         paune = pynini.string_file(get_abs_path("data/whitelist/paune_mappings.tsv"))
-        paune_numbers = paune + pynini.cross(TA_TIME_FORTYFIVE, "")
+        paune_numbers = (
+            paune + pynini.cross(TA_TIME_FORTYFIVE, "")
+            | (arabic_to_tamil_number @ paune) + pynini.cross(AR_TIME_FORTYFIVE, "")
+        )
         paune_graph = pynutil.insert(TA_PAUNE) + pynutil.insert(NEMO_SPACE) + paune_numbers
 
         graph_dedh_dhai = (

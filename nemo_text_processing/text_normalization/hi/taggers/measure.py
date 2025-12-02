@@ -23,6 +23,8 @@ from nemo_text_processing.text_normalization.hi.graph_utils import (
     HI_SADHE,
     HI_SAVVA,
     NEMO_ALPHA,
+    NEMO_DIGIT,
+    NEMO_HI_DIGIT,
     NEMO_NON_BREAKING_SPACE,
     NEMO_SIGMA,
     NEMO_SPACE,
@@ -34,6 +36,13 @@ from nemo_text_processing.text_normalization.hi.graph_utils import (
     insert_space,
 )
 from nemo_text_processing.text_normalization.hi.utils import get_abs_path
+
+# Convert Arabic digits (0-9) to Hindi digits (०-९)
+arabic_to_hindi_digit = pynini.string_map([
+    ("0", "०"), ("1", "१"), ("2", "२"), ("3", "३"), ("4", "४"),
+    ("5", "५"), ("6", "६"), ("7", "७"), ("8", "८"), ("9", "९")
+]).optimize()
+arabic_to_hindi_number = pynini.closure(arabic_to_hindi_digit).optimize()
 
 HI_POINT_FIVE = ".५"  # .5
 HI_ONE_POINT_FIVE = "१.५"  # 1.5
@@ -65,7 +74,9 @@ class MeasureFst(GraphFst):
         self.deterministic = deterministic
 
         # Get cardinal graph with range support (like English)
-        cardinal_graph_base = (
+        # Support both Hindi and Arabic digits
+        # Hindi digits path
+        hindi_cardinal_graph_base = (
             cardinal.zero
             | cardinal.digit
             | cardinal.teens_and_ties
@@ -75,6 +86,22 @@ class MeasureFst(GraphFst):
             | cardinal.graph_lakhs
             | cardinal.graph_ten_lakhs
         )
+        
+        # Arabic digits path - convert to Hindi first, then compose with cardinal
+        # Hindi number input
+        hindi_number_input = pynini.closure(NEMO_HI_DIGIT, 1)
+        hindi_number_graph = pynini.compose(hindi_number_input, hindi_cardinal_graph_base).optimize()
+        
+        # Arabic number input - convert to Hindi, then compose with cardinal
+        arabic_number_input = pynini.closure(NEMO_DIGIT, 1)
+        arabic_number_graph = pynini.compose(
+            arabic_number_input,
+            arabic_to_hindi_number @ hindi_cardinal_graph_base
+        ).optimize()
+        
+        # Combined cardinal graph (supports both Hindi and Arabic digits)
+        cardinal_graph_base = hindi_number_graph | arabic_number_graph
+        
         # Add range support (e.g., 2-3, 2x3, 2*2)
         cardinal_graph = cardinal_graph_base | self.get_range(cardinal_graph_base)
         
@@ -240,11 +267,14 @@ class MeasureFst(GraphFst):
         )
 
         # Cardinal with plural units (for numbers != 1)
+        # Exclude "1" and "१" from matching (they will be handled by singular pattern)
+        # Note: cardinal_graph already handles both Hindi and Arabic digits
+        exclude_one = (NEMO_SIGMA - "1" - "१")
         subgraph_cardinal = (
             pynutil.insert("cardinal { ")
             + optional_graph_negative
             + pynutil.insert('integer: "')
-            + ((NEMO_SIGMA - "1" - "१") @ cardinal_graph)
+            + pynini.compose(exclude_one, cardinal_graph)
             + delete_space
             + pynutil.insert('"')
             + pynutil.insert(" } ")
@@ -266,6 +296,7 @@ class MeasureFst(GraphFst):
         )
         
         # Keep existing graph_cardinal for backward compatibility
+        # This uses cardinal_graph_base which already supports both Hindi and Arabic digits
         graph_cardinal = (
             pynutil.insert("cardinal { ")
             + optional_graph_negative

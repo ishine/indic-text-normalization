@@ -15,16 +15,17 @@
 import pynini
 from pynini.lib import pynutil
 
+# Bhojpuri/Hindi currency names and their minor denominations
 major_minor_currencies = {
-    "ரூபாய்": "பைசா",
-    "பவுண்ட்": "பென்ஸ்",
-    "வான்": "ஜியோன்",
-    "டாலர்": "சென்ட்",
-    "லீரா": "குருஸ்",
-    "டாக்கா": "பைசா",
-    "யென்": "சென்",
-    "நைரா": "கோபோ",
-    "யூரோ": "சென்ட்",
+    "रुपया": "पैसा",
+    "पाउंड": "पेंस",
+    "वॉन": "जियॉन",
+    "डॉलर": "सेंट",
+    "लीरा": "कुरुश",
+    "टका": "पैसा",
+    "येन": "सेन",
+    "नायरा": "कोबो",
+    "यूरो": "सेंट",
 }
 from nemo_text_processing.text_normalization.bho.graph_utils import NEMO_NOT_QUOTE, NEMO_SPACE, GraphFst
 
@@ -32,9 +33,9 @@ from nemo_text_processing.text_normalization.bho.graph_utils import NEMO_NOT_QUO
 class MoneyFst(GraphFst):
     """
     Finite state transducer for verbalizing money, e.g.
-        money { integer_part: "பன்னிரண்டு" currency_maj: "ரூபாய்" } -> பன்னிரண்டு ரூபாய்
-        money { integer_part: "பன்னிரண்டு" currency_maj: "ரூபாய்" fractional_part: "ஐம்பது" currency_min: "centiles" } -> பன்னிரண்டு ரூபாய் ஐம்பது பைசா
-        money { currency_maj: "ரூபாய்" integer_part: "பூஜ்யம்" fractional_part: "ஐம்பது" currency_min: "centiles" } -> ஐம்பது பைசா
+        money { integer_part: "बारह" currency_maj: "रुपया" } -> बारह रुपया
+        money { integer_part: "बारह" currency_maj: "रुपया" fractional_part: "पचास" currency_min: "centiles" } -> बारह रुपया पचास पैसा
+        money { currency_maj: "रुपया" integer_part: "शून्य" fractional_part: "पचास" currency_min: "centiles" } -> पचास पैसा
 
     Args:
         cardinal: CardinalFst
@@ -78,8 +79,9 @@ class MoneyFst(GraphFst):
             )
             major_minor_graphs.append(graph_major_minor_partial)
 
+            # "शून्य" is "zero" in Bhojpuri/Hindi
             graph_minor_partial = (
-                pynutil.delete('integer_part: "பூஜ்யம்"')
+                pynutil.delete('integer_part: "शून्य"')
                 + pynutil.delete(NEMO_SPACE)
                 + pynutil.delete('currency_maj: "')
                 + pynutil.delete(major)

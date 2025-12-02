@@ -16,6 +16,7 @@ import pynini
 from pynini.lib import pynutil
 
 from nemo_text_processing.text_normalization.cg.graph_utils import (
+    NEMO_DIGIT,
     NEMO_CG_DIGIT,
     NEMO_CG_NON_ZERO,
     NEMO_CG_ZERO,
@@ -23,6 +24,13 @@ from nemo_text_processing.text_normalization.cg.graph_utils import (
     insert_space,
 )
 from nemo_text_processing.text_normalization.cg.utils import get_abs_path
+
+# Convert Arabic digits (0-9) to Chhattisgarhi digits (०-९)
+arabic_to_cg_digit = pynini.string_map([
+    ("0", "०"), ("1", "१"), ("2", "२"), ("3", "३"), ("4", "४"),
+    ("5", "५"), ("6", "६"), ("7", "७"), ("8", "८"), ("9", "९")
+]).optimize()
+arabic_to_cg_number = pynini.closure(arabic_to_cg_digit).optimize()
 
 days = pynini.string_file(get_abs_path("data/date/days.tsv"))
 months = pynini.string_file(get_abs_path("data/date/months.tsv"))
@@ -45,9 +53,9 @@ prefix_union = pynini.union(*prefixes_list)
 class DateFst(GraphFst):
     """
     Finite state transducer for classifying date, e.g.
-        "०१-०४-२०२४" -> date { day: "एक" month: "अप्रैल" year: "दो हज़ार चौबीस" }
-        "०४-०१-२०२४" -> date { month: "अप्रैल" day: "एक" year: "दो हज़ार चौबीस" }
-
+        "०१-०४-२०२४" -> date { day: "एक" month: "अप्रैल" year: "दुई हज़ार चउबिस" }
+        "01-04-2024" -> date { day: "एक" month: "अप्रैल" year: "दुई हज़ार चउबिस" }
+        "2024-01-15" -> date { year: "दुई हज़ार चउबिस" month: "जनवरी" day: "पंदरा" }
 
     Args:
         cardinal: cardinal GraphFst
@@ -58,87 +66,132 @@ class DateFst(GraphFst):
     def __init__(self, cardinal: GraphFst):
         super().__init__(name="date", kind="classify")
 
-        graph_year_thousands = pynini.compose(
-            (NEMO_CG_DIGIT + NEMO_CG_ZERO + NEMO_CG_DIGIT + NEMO_CG_DIGIT), cardinal.graph_thousands
-        )
-        graph_year_hundreds_as_thousands = pynini.compose(
-            (NEMO_CG_DIGIT + NEMO_CG_NON_ZERO + NEMO_CG_DIGIT + NEMO_CG_DIGIT), cardinal.graph_hundreds_as_thousand
-        )
+        cardinal_graph = cardinal.final_graph
 
-        cardinal_graph = pynini.union(
-            digit, teens_and_ties, cardinal.graph_hundreds, graph_year_thousands, graph_year_hundreds_as_thousands
-        )
+        # Support both Chhattisgarhi and Arabic digits for days
+        # Chhattisgarhi digits path: Chhattisgarhi digits -> days mapping
+        cg_day_input = pynini.closure(NEMO_CG_DIGIT, 1, 2)
+        cg_days_graph = pynini.compose(cg_day_input, days).optimize()
+        
+        # Arabic digits path: Arabic digits -> convert to Chhattisgarhi -> days mapping
+        arabic_day_input = pynini.closure(NEMO_DIGIT, 1, 2)
+        arabic_days_graph = pynini.compose(
+            arabic_day_input,
+            arabic_to_cg_number @ days
+        ).optimize()
+        
+        days_graph = cg_days_graph | arabic_days_graph
 
-        graph_year = pynini.union(graph_year_thousands, graph_year_hundreds_as_thousands)
+        # Support both Chhattisgarhi and Arabic digits for months
+        cg_month_input = pynini.closure(NEMO_CG_DIGIT, 1, 2)
+        cg_months_graph = pynini.compose(cg_month_input, months).optimize()
+        
+        arabic_month_input = pynini.closure(NEMO_DIGIT, 1, 2)
+        arabic_months_graph = pynini.compose(
+            arabic_month_input,
+            arabic_to_cg_number @ months
+        ).optimize()
+        
+        months_graph = cg_months_graph | arabic_months_graph
 
+        # Year graph - support both Chhattisgarhi and Arabic 4-digit years
+        cg_year_input = NEMO_CG_DIGIT + NEMO_CG_DIGIT + NEMO_CG_DIGIT + NEMO_CG_DIGIT
+        cg_year_graph = pynini.compose(cg_year_input, cardinal_graph).optimize()
+        
+        arabic_year_input = NEMO_DIGIT + NEMO_DIGIT + NEMO_DIGIT + NEMO_DIGIT
+        arabic_year_graph = pynini.compose(
+            arabic_year_input,
+            arabic_to_cg_number @ cardinal_graph
+        ).optimize()
+        
+        year_graph = cg_year_graph | arabic_year_graph
+
+        # Also support 2-digit years
+        cg_year_2digit_input = NEMO_CG_DIGIT + NEMO_CG_DIGIT
+        cg_year_2digit_graph = pynini.compose(cg_year_2digit_input, cardinal_graph).optimize()
+        
+        arabic_year_2digit_input = NEMO_DIGIT + NEMO_DIGIT
+        arabic_year_2digit_graph = pynini.compose(
+            arabic_year_2digit_input,
+            arabic_to_cg_number @ cardinal_graph
+        ).optimize()
+        
+        year_2digit_graph = cg_year_2digit_graph | arabic_year_2digit_graph
+
+        # Separators
         delete_dash = pynutil.delete("-")
         delete_slash = pynutil.delete("/")
+        delete_dot = pynutil.delete(".")
+        delete_separator = delete_dash | delete_slash | delete_dot
 
-        days_graph = pynutil.insert("day: \"") + days + pynutil.insert("\"") + insert_space
+        # Build date components with labels
+        day_component = pynutil.insert("day: \"") + days_graph + pynutil.insert("\"")
+        month_component = pynutil.insert("month: \"") + months_graph + pynutil.insert("\"")
+        year_component = pynutil.insert("year: \"") + (year_graph | year_2digit_graph) + pynutil.insert("\"")
 
-        months_graph = pynutil.insert("month: \"") + months + pynutil.insert("\"") + insert_space
-
-        years_graph = pynutil.insert("year: \"") + graph_year + pynutil.insert("\"") + insert_space
-
-        graph_dd_mm = days_graph + delete_dash + months_graph
-
-        graph_mm_dd = months_graph + delete_dash + days_graph
-
-        graph_mm_dd += pynutil.insert(" preserve_order: true ")
-
-        # Graph for era
-        era_graph = pynutil.insert("era: \"") + year_suffix + pynutil.insert("\"") + insert_space
-
-        range_graph = pynini.cross("-", "से")
-
-        # Graph for year
-        century_number = pynini.compose(pynini.closure(NEMO_CG_DIGIT, 1), cardinal_graph) + pynini.accep("वीं")
-        century_text = pynutil.insert("era: \"") + century_number + pynutil.insert("\"") + insert_space
-
-        # Updated logic to use suffix_union
-        year_number = graph_year + suffix_union
-        year_text = pynutil.insert("era: \"") + year_number + pynutil.insert("\"") + insert_space
-
-        # Updated logic to use prefix_union
-        year_prefix = pynutil.insert("era: \"") + prefix_union + insert_space + graph_year + pynutil.insert("\"")
-
-        delete_separator = pynini.union(delete_dash, delete_slash)
-        graph_dd_mm_yyyy = days_graph + delete_separator + months_graph + delete_separator + years_graph
-
-        graph_mm_dd_yyyy = months_graph + delete_separator + days_graph + delete_separator + years_graph
-
-        graph_mm_dd_yyyy += pynutil.insert(" preserve_order: true ")
-
-        graph_mm_yyyy = months_graph + delete_dash + insert_space + years_graph
-
-        graph_year_suffix = era_graph
-
-        graph_range = (
-            pynutil.insert("era: \"")
-            + cardinal_graph
+        # DD-MM-YYYY format (common in India)
+        graph_dd_mm_yyyy = (
+            day_component
             + insert_space
-            + range_graph
+            + delete_separator
+            + month_component
             + insert_space
-            + cardinal_graph
-            + pynutil.insert("\"")
-            + pynutil.insert(" preserve_order: true ")
+            + delete_separator
+            + year_component
         )
 
-        # default assume dd_mm_yyyy
+        # MM-DD-YYYY format
+        graph_mm_dd_yyyy = (
+            month_component
+            + insert_space
+            + delete_separator
+            + day_component
+            + insert_space
+            + delete_separator
+            + year_component
+            + pynutil.insert(" preserve_order: true")
+        )
 
+        # YYYY-MM-DD format (ISO format)
+        graph_yyyy_mm_dd = (
+            year_component
+            + insert_space
+            + delete_separator
+            + month_component
+            + insert_space
+            + delete_separator
+            + day_component
+        )
+
+        # DD-MM format (without year)
+        graph_dd_mm = (
+            day_component
+            + insert_space
+            + delete_separator
+            + month_component
+        )
+
+        # MM-DD format (without year)
+        graph_mm_dd = (
+            month_component
+            + insert_space
+            + delete_separator
+            + day_component
+            + pynutil.insert(" preserve_order: true")
+        )
+
+        # Year suffix (A.D., B.C., etc.)
+        era_graph = pynutil.insert("era: \"") + year_suffix + pynutil.insert("\"")
+
+        # Combine all date formats with weights
         final_graph = (
-            pynutil.add_weight(graph_dd_mm, -0.001)
-            | graph_mm_dd
-            | pynutil.add_weight(graph_dd_mm_yyyy, -0.001)
+            pynutil.add_weight(graph_dd_mm_yyyy, -0.001)  # Prefer DD-MM-YYYY
+            | pynutil.add_weight(graph_yyyy_mm_dd, -0.001)  # ISO format
             | graph_mm_dd_yyyy
-            | pynutil.add_weight(graph_mm_yyyy, -0.2)
-            | pynutil.add_weight(graph_year_suffix, -0.001)
-            | pynutil.add_weight(graph_range, -0.005)
-            | pynutil.add_weight(century_text, -0.001)
-            | pynutil.add_weight(year_text, -0.001)
-            | pynutil.add_weight(year_prefix, -0.009)
+            | pynutil.add_weight(graph_dd_mm, -0.002)
+            | graph_mm_dd
+            | pynutil.add_weight(era_graph, -0.001)
         )
 
         self.final_graph = final_graph.optimize()
-
         self.fst = self.add_tokens(self.final_graph)

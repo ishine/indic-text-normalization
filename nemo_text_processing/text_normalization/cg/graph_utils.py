@@ -58,7 +58,7 @@ MIN_NEG_WEIGHT = -0.0001
 MIN_POS_WEIGHT = 0.0001
 INPUT_CASED = "cased"
 INPUT_LOWER_CASED = "lower_cased"
-MINUS = pynini.union(" ऋण ", " माइनस ").optimize()
+MINUS = pynini.union(" ऋण ", " ऋणात्मक ").optimize()
 
 # Chhattisgarhi time-specific constants
 CG_DEDH = "डेढ़"  # 1.5

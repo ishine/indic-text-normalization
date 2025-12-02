@@ -18,90 +18,49 @@ from pynini.lib import pynutil
 from nemo_text_processing.text_normalization.bn.graph_utils import (
     NEMO_NOT_QUOTE, 
     GraphFst, 
-    delete_space, 
     insert_space,
-    BN_DEDH,
-    BN_DHAI,
-    BN_PAUNE,
-    BN_SADHE,
-    BN_SAVVA,
 )
 
 
 class FractionFst(GraphFst):
     """
-    Finite state transducer for verbalizing fraction, e.g.
-        fraction { integer: "তেইশ" numerator: "চার" denominator: "ছয়"} -> তেইশ চার ভাগ ছয়
-        fraction { morphosyntactic_features: "দেড়" } -> দেড়
-
-    Args:
-        deterministic: if True will provide a single transduction option,
-        for False multiple options (used for audio-based normalization)
+    Finite state transducer for verbalizing fractions, e.g.
+        fraction { numerator: "তিন" denominator: "চার" } -> তিন ভাগ চার
+        fraction { integer_part: "তেইশ" numerator: "চার" denominator: "ছয়" } -> তেইশ এবং চার ভাগ ছয়
+    
+    Following English/Tamil fraction verbalizer pattern.
     """
 
-    def __init__(self, cardinal: GraphFst, deterministic: bool = True):
+    def __init__(self, deterministic: bool = True):
         super().__init__(name="fraction", kind="verbalize", deterministic=deterministic)
 
-        optional_sign = pynini.closure(
-            pynutil.delete("negative:")
-            + delete_space
-            + pynutil.delete("\"true\"")
-            + delete_space
-            + pynutil.insert("ঋণাত্মক ")
-            + delete_space,
-            0,
-            1,
-        )
+        # Integer part extraction
+        integer = pynutil.delete("integer_part: \"") + pynini.closure(NEMO_NOT_QUOTE) + pynutil.delete("\" ")
 
-        integer = (
-            pynutil.delete("integer_part:")
-            + delete_space
-            + pynutil.delete("\"")
-            + pynini.closure(NEMO_NOT_QUOTE, 1)
-            + pynutil.delete("\"")
-        )
-
+        # Numerator
         numerator = (
-            pynutil.delete("numerator:")
-            + delete_space
-            + pynutil.delete("\"")
+            pynutil.delete("numerator: \"")
             + pynini.closure(NEMO_NOT_QUOTE, 1)
-            + pynutil.delete("\"")
+            + pynutil.delete("\" ")
         )
 
+        # Denominator
         denominator = (
-            pynutil.delete("denominator:")
-            + delete_space
-            + pynutil.delete("\"")
+            pynutil.delete("denominator: \"")
             + pynini.closure(NEMO_NOT_QUOTE, 1)
             + pynutil.delete("\"")
         )
 
-        # Handle special Bengali fraction words
-        morphosyntactic_features = (
-            pynutil.delete("morphosyntactic_features:")
-            + delete_space
-            + pynutil.delete("\"")
-            + pynini.closure(NEMO_NOT_QUOTE, 1)
-            + pynutil.delete("\"")
-        )
+        # Regular fraction: numerator + "ভাগ" + denominator
+        graph = numerator + pynutil.insert("ভাগ ") + denominator
 
-        # Regular fraction: integer (optional) + numerator + "ভাগ" + denominator
-        regular_fraction = (
-            pynini.closure(integer + insert_space, 0, 1) 
-            + numerator 
-            + insert_space 
-            + pynutil.insert("ভাগ") 
-            + insert_space 
-            + denominator
-        )
+        # Add "এবং" (and) for mixed numbers
+        conjunction = pynutil.insert("এবং ")
+        integer = pynini.closure(integer + conjunction, 0, 1)
 
-        # Special fraction words (dedh, dhai, sadhe, savva, paune)
-        special_fraction = morphosyntactic_features
+        graph = integer + graph
 
-        graph = regular_fraction | special_fraction
-        graph = optional_sign + graph
-
-        delete_tokens = self.delete_tokens(graph)
+        self.graph = graph
+        delete_tokens = self.delete_tokens(self.graph)
         self.fst = delete_tokens.optimize()
 

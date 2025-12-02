@@ -15,10 +15,21 @@
 import pynini
 from pynini.lib import pynutil
 
-from nemo_text_processing.text_normalization.ta.graph_utils import GraphFst, insert_space
+from nemo_text_processing.text_normalization.ta.graph_utils import (
+    GraphFst,
+    NEMO_DIGIT,
+    insert_space,
+)
 from nemo_text_processing.text_normalization.ta.utils import get_abs_path
 
 quantities = pynini.string_file(get_abs_path("data/numbers/thousands.tsv"))
+
+# Convert Arabic digits (0-9) to Tamil digits (௦-௯)
+arabic_to_tamil_digit = pynini.string_map([
+    ("0", "௦"), ("1", "௧"), ("2", "௨"), ("3", "௩"), ("4", "௪"),
+    ("5", "௫"), ("6", "௬"), ("7", "௭"), ("8", "௮"), ("9", "௯")
+]).optimize()
+arabic_to_tamil_number = pynini.closure(arabic_to_tamil_digit).optimize()
 
 
 def get_quantity(decimal: 'pynini.FstLike', cardinal_up_to_hundred: 'pynini.FstLike') -> 'pynini.FstLike':
@@ -61,7 +72,13 @@ class DecimalFst(GraphFst):
         graph_digit = cardinal.digit | cardinal.zero
         cardinal_graph = cardinal.final_graph
 
-        self.graph = graph_digit + pynini.closure(insert_space + graph_digit).optimize()
+        tamil_digit_sequence = (graph_digit + pynini.closure(insert_space + graph_digit)).optimize()
+        arabic_digit_input = pynini.closure(NEMO_DIGIT, 1)
+        arabic_digit_sequence = pynini.compose(
+            arabic_digit_input,
+            arabic_to_tamil_number @ tamil_digit_sequence,
+        ).optimize()
+        self.graph = (tamil_digit_sequence | arabic_digit_sequence).optimize()
 
         # Handle both "." and "," as decimal separators (common in Indian number systems)
         point = pynutil.delete(pynini.union(".", ","))

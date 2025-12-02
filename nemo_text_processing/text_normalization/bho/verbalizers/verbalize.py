@@ -14,10 +14,14 @@
 
 from nemo_text_processing.text_normalization.bho.graph_utils import GraphFst
 from nemo_text_processing.text_normalization.bho.verbalizers.cardinal import CardinalFst
+from nemo_text_processing.text_normalization.bho.verbalizers.date import DateFst
 from nemo_text_processing.text_normalization.bho.verbalizers.decimal import DecimalFst
+from nemo_text_processing.text_normalization.bho.verbalizers.fraction import FractionFst
 from nemo_text_processing.text_normalization.bho.verbalizers.math import MathFst
+from nemo_text_processing.text_normalization.bho.verbalizers.measure import MeasureFst
 from nemo_text_processing.text_normalization.bho.verbalizers.money import MoneyFst
 from nemo_text_processing.text_normalization.bho.verbalizers.ordinal import OrdinalFst
+from nemo_text_processing.text_normalization.bho.verbalizers.telephone import TelephoneFst
 from nemo_text_processing.text_normalization.bho.verbalizers.time import TimeFst
 from nemo_text_processing.text_normalization.bho.verbalizers.whitelist import WhiteListFst
 
@@ -42,11 +46,23 @@ class VerbalizeFst(GraphFst):
         decimal = DecimalFst(deterministic=deterministic)
         decimal_graph = decimal.fst
 
+        fraction = FractionFst(deterministic=deterministic)
+        fraction_graph = fraction.fst
+
         time = TimeFst(cardinal=cardinal)
         time_graph = time.fst
 
+        date = DateFst()
+        date_graph = date.fst
+
         money = MoneyFst()
         money_graph = money.fst
+
+        measure = MeasureFst(deterministic=deterministic)
+        measure_graph = measure.fst
+
+        telephone = TelephoneFst(deterministic=deterministic)
+        telephone_graph = telephone.fst
 
         ordinal = OrdinalFst(deterministic=deterministic)
         ordinal_graph = ordinal.fst
@@ -59,8 +75,12 @@ class VerbalizeFst(GraphFst):
         graph = (
             cardinal_graph
             | decimal_graph
+            | fraction_graph
             | time_graph
+            | date_graph
             | money_graph
+            | measure_graph
+            | telephone_graph
             | ordinal_graph
             | math_graph
             | whitelist_graph

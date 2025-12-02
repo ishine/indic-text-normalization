@@ -16,34 +16,34 @@ import pynini
 from pynini.lib import pynutil
 
 from nemo_text_processing.text_normalization.bho.graph_utils import (
-    KN_DEDH,
-    KN_DHAI,
-    KN_PAUNE,
-    KN_SADHE,
-    KN_SAVVA,
+    NEMO_ALPHA,
+    NEMO_DIGIT,
+    NEMO_BHO_DIGIT,
+    NEMO_NON_BREAKING_SPACE,
     NEMO_SPACE,
+    TO_LOWER,
     GraphFst,
+    convert_space,
     delete_space,
+    delete_zero_or_one_space,
     insert_space,
 )
 from nemo_text_processing.text_normalization.bho.utils import get_abs_path
 
-KN_POINT_FIVE = ".೫"  # .5
-KN_ONE_POINT_FIVE = "೧.೫"  # 1.5
-KN_TWO_POINT_FIVE = "೨.೫"  # 2.5
-KN_DECIMAL_25 = ".೨೫"  # .25
-KN_DECIMAL_75 = ".೭೫"  # .75
-
-digit = pynini.string_file(get_abs_path("data/numbers/digit.tsv"))
-teens_ties = pynini.string_file(get_abs_path("data/numbers/teens_and_ties.tsv"))
-teens_and_ties = pynutil.add_weight(teens_ties, -0.1)
+# Convert Arabic digits (0-9) to Bhojpuri digits (०-९) - Devanagari script
+arabic_to_bhojpuri_digit = pynini.string_map([
+    ("0", "०"), ("1", "१"), ("2", "२"), ("3", "३"), ("4", "४"),
+    ("5", "५"), ("6", "६"), ("7", "७"), ("8", "८"), ("9", "९")
+]).optimize()
+arabic_to_bhojpuri_number = pynini.closure(arabic_to_bhojpuri_digit).optimize()
 
 
 class MeasureFst(GraphFst):
     """
-    Finite state transducer for classifying measure, suppletive aware, e.g.
-        -೧೨kg -> measure { negative: "true" cardinal { integer: "ಹನ್ನೆರಡು" } units: "ಕಿಲೋಗ್ರಾಂ" }
-        -೧೨.೨kg -> measure { decimal { negative: "true"  integer_part: "ಹನ್ನೆರಡು"  fractional_part: "ಎರಡು"} units: "ಕಿಲೋಗ್ರಾಂ" }
+    Finite state transducer for classifying measure, e.g.
+        -12kg -> measure { negative: "true" cardinal { integer: "बारह" } units: "किलोग्राम" }
+        12.5kg -> measure { decimal { integer_part: "बारह" fractional_part: "पाँच" } units: "किलोग्राम" }
+        १२ kg -> measure { cardinal { integer: "बारह" } units: "किलोग्राम" }
 
     Args:
         cardinal: CardinalFst
@@ -52,182 +52,123 @@ class MeasureFst(GraphFst):
             for False multiple transduction are generated (used for audio-based normalization)
     """
 
-    def __init__(self, cardinal: GraphFst, decimal: GraphFst):
-        super().__init__(name="measure", kind="classify")
+    def __init__(self, cardinal: GraphFst, decimal: GraphFst, deterministic: bool = True):
+        super().__init__(name="measure", kind="classify", deterministic=deterministic)
+        self.deterministic = deterministic
 
-        from nemo_text_processing.text_normalization.bho.graph_utils import NEMO_DIGIT
-        
-        # Convert Arabic digits to Kannada for measures
-        arabic_to_kannada_digit = pynini.string_map([
-            ("0", "೦"), ("1", "೧"), ("2", "೨"), ("3", "೩"), ("4", "೪"),
-            ("5", "೫"), ("6", "೬"), ("7", "೭"), ("8", "೮"), ("9", "೯")
-        ]).optimize()
-        arabic_to_kannada_number = pynini.closure(arabic_to_kannada_digit).optimize()
+        cardinal_graph = cardinal.final_graph
 
-        kannada_cardinal_graph = (
-            cardinal.zero
-            | cardinal.digit
-            | cardinal.teens_and_ties
-            | cardinal.graph_hundreds
-            | cardinal.graph_thousands
-            | cardinal.graph_ten_thousands
-            | cardinal.graph_lakhs
-            | cardinal.graph_ten_lakhs
-        )
-        # Support Arabic digits for measures
-        arabic_cardinal_graph = pynini.compose(
-            pynini.closure(NEMO_DIGIT, 1),
-            arabic_to_kannada_number @ kannada_cardinal_graph
-        )
-        cardinal_graph = kannada_cardinal_graph | arabic_cardinal_graph
-        point = pynutil.delete(".")
-        decimal_integers = pynutil.insert("integer_part: \"") + cardinal_graph + pynutil.insert("\"")
-        decimal_graph = decimal_integers + point + insert_space + decimal.graph_fractional
+        # Support both Bhojpuri and Arabic digits
+        bhojpuri_number_input = pynini.closure(NEMO_BHO_DIGIT, 1)
+        bhojpuri_number_graph = pynini.compose(bhojpuri_number_input, cardinal_graph).optimize()
+
+        arabic_number_input = pynini.closure(NEMO_DIGIT, 1)
+        arabic_number_graph = pynini.compose(
+            arabic_number_input,
+            arabic_to_bhojpuri_number @ cardinal_graph
+        ).optimize()
+
+        cardinal_graph_combined = bhojpuri_number_graph | arabic_number_graph
+
+        # Add range support (e.g., 2-3, 2x3)
+        cardinal_with_range = cardinal_graph_combined | self.get_range(cardinal_graph_combined)
+
+        # Load unit graph
         unit_graph = pynini.string_file(get_abs_path("data/measure/unit.tsv"))
 
-        # Load quarterly units from separate files: map (FST) and list (FSA)
-        quarterly_units_map = pynini.string_file(get_abs_path("data/measure/quarterly_units_map.tsv"))
-        quarterly_units_list = pynini.string_file(get_abs_path("data/measure/quarterly_units_list.tsv"))
-        quarterly_units_graph = pynini.union(quarterly_units_map, quarterly_units_list)
+        # Support lowercase unit names
+        unit_graph |= pynini.compose(
+            pynini.closure(TO_LOWER, 1) + (NEMO_ALPHA | TO_LOWER) + pynini.closure(NEMO_ALPHA | TO_LOWER),
+            unit_graph,
+        ).optimize()
+
+        # Convert spaces to non-breaking spaces
+        unit_graph = convert_space(unit_graph)
 
         optional_graph_negative = pynini.closure(
-            pynutil.insert("negative: ") + pynini.cross("-", "\"true\"") + insert_space,
+            pynutil.insert("negative: ") + pynini.cross("-", "\"true\" "),
             0,
             1,
         )
 
-        # Define the quarterly measurements
-        quarter = pynini.string_map(
-            [
-                (KN_POINT_FIVE, KN_SADHE),
-                (KN_ONE_POINT_FIVE, KN_DEDH),
-                (KN_TWO_POINT_FIVE, KN_DHAI),
-            ]
-        )
-        quarter_graph = pynutil.insert("integer_part: \"") + quarter + pynutil.insert("\"")
-
-        # Define the unit handling
-        unit = (
-            pynutil.insert(NEMO_SPACE)
-            + pynutil.insert("units: \"")
-            + unit_graph
-            + pynutil.insert("\"")
-            + pynutil.insert(NEMO_SPACE)
-        )
-        units = (
-            pynutil.insert(NEMO_SPACE)
-            + pynutil.insert("units: \"")
-            + quarterly_units_graph
-            + pynutil.insert("\"")
-            + pynutil.insert(NEMO_SPACE)
+        # "per" unit support (e.g., km/h)
+        graph_unit2 = (
+            pynini.cross("/", "प्रति") + delete_zero_or_one_space + pynutil.insert(NEMO_NON_BREAKING_SPACE) + unit_graph
         )
 
-        # Handling symbols like x, X, *
-        symbol_graph = pynini.string_map(
-            [
-                ("x", "ಬಾರಿ"),
-                ("X", "ಬಾರಿ"),
-                ("*", "ಬಾರಿ"),
-            ]
+        optional_graph_unit2 = pynini.closure(
+            delete_zero_or_one_space + pynutil.insert(NEMO_NON_BREAKING_SPACE) + graph_unit2,
+            0,
+            1,
         )
 
-        graph_decimal = (
+        unit_component = (
+            pynutil.insert('units: "') + (unit_graph + optional_graph_unit2 | graph_unit2) + pynutil.insert('"')
+        )
+
+        # Cardinal + unit (e.g., 12 kg)
+        subgraph_cardinal = (
+            pynutil.insert("cardinal { ")
+            + optional_graph_negative
+            + pynutil.insert('integer: "')
+            + cardinal_with_range
+            + pynutil.insert('"')
+            + pynutil.insert(" } ")
+            + delete_space
+            + unit_component
+        )
+
+        # Decimal + unit (e.g., 12.5 kg)
+        subgraph_decimal = (
             pynutil.insert("decimal { ")
             + optional_graph_negative
-            + decimal_graph
-            + pynutil.insert(" }")
+            + decimal.final_graph_wo_negative
+            + pynutil.insert(" } ")
             + delete_space
-            + unit
+            + unit_component
         )
 
-        dedh_dhai = pynini.string_map([(KN_ONE_POINT_FIVE, KN_DEDH), (KN_TWO_POINT_FIVE, KN_DHAI)])
-        dedh_dhai_graph = pynutil.insert("integer: \"") + dedh_dhai + pynutil.insert("\"")
-
-        savva_numbers = cardinal_graph + pynini.cross(KN_DECIMAL_25, "")
-        savva_graph = (
-            pynutil.insert("integer: \"")
-            + pynutil.insert(KN_SAVVA)
-            + pynutil.insert(NEMO_SPACE)
-            + savva_numbers
-            + pynutil.insert("\"")
+        # Unit graph standalone (e.g., /kg -> per kilogram)
+        unit_graph_standalone = (
+            pynutil.insert('cardinal { integer: "-" } units: "')
+            + ((pynini.cross("/", "प्रति") + delete_zero_or_one_space) | (pynini.accep("प्रति") + pynutil.delete(" ")))
+            + pynutil.insert(NEMO_NON_BREAKING_SPACE)
+            + unit_graph
+            + pynutil.insert('" preserve_order: true')
         )
 
-        sadhe_numbers = cardinal_graph + pynini.cross(KN_POINT_FIVE, "")
-        sadhe_graph = (
-            pynutil.insert("integer: \"")
-            + pynutil.insert(KN_SADHE)
-            + pynutil.insert(NEMO_SPACE)
-            + sadhe_numbers
-            + pynutil.insert("\"")
+        # Decimal dash alpha (e.g., 12.5-kg)
+        decimal_dash_alpha = (
+            pynutil.insert("decimal { ")
+            + decimal.final_graph_wo_negative
+            + pynini.cross("-", "")
+            + pynutil.insert(' } units: "')
+            + pynini.closure(NEMO_ALPHA, 1)
+            + pynutil.insert('"')
         )
 
-        paune = pynini.string_file(get_abs_path("data/whitelist/paune_mappings.tsv"))
-        paune_numbers = paune + pynini.cross(KN_DECIMAL_75, "")
-        paune_graph = (
-            pynutil.insert("integer: \"")
-            + pynutil.insert(KN_PAUNE)
-            + pynutil.insert(NEMO_SPACE)
-            + paune_numbers
-            + pynutil.insert("\"")
+        # Decimal times (e.g., 12.5x)
+        decimal_times = (
+            pynutil.insert("decimal { ")
+            + decimal.final_graph_wo_negative
+            + pynutil.insert(' } units: "')
+            + (pynini.cross(pynini.union("x", "X"), "गुना") | pynini.cross(pynini.union("*"), "गुना"))
+            + pynutil.insert('"')
         )
 
-        graph_dedh_dhai = (
-            pynutil.insert("cardinal { ")
-            + optional_graph_negative
-            + dedh_dhai_graph
-            + pynutil.insert(NEMO_SPACE)
-            + pynutil.insert("}")
-            + delete_space
-            + units
-        )
+        # Symbol handling (x, X, *)
+        symbol_graph = pynini.string_map([
+            ("x", "गुना"),
+            ("X", "गुना"),
+            ("*", "गुना"),
+        ])
 
-        graph_savva = (
-            pynutil.insert("cardinal { ")
-            + optional_graph_negative
-            + savva_graph
-            + pynutil.insert(NEMO_SPACE)
-            + pynutil.insert("}")
-            + delete_space
-            + units
-        )
-
-        graph_sadhe = (
-            pynutil.insert("cardinal { ")
-            + optional_graph_negative
-            + sadhe_graph
-            + pynutil.insert(NEMO_SPACE)
-            + pynutil.insert("}")
-            + delete_space
-            + units
-        )
-
-        graph_paune = (
-            pynutil.insert("cardinal { ")
-            + optional_graph_negative
-            + paune_graph
-            + pynutil.insert(" }")
-            + delete_space
-            + units
-        )
-
-        graph_cardinal = (
-            pynutil.insert("cardinal { ")
-            + optional_graph_negative
-            + pynutil.insert("integer: \"")
-            + cardinal_graph
-            + pynutil.insert("\"")
-            + pynutil.insert(NEMO_SPACE)
-            + pynutil.insert("}")
-            + delete_space
-            + unit
-        )
-
-        # Handling cardinal clubbed with symbol as single token
+        # Cardinal with symbol (e.g., 2x3)
         graph_exceptions = (
             pynutil.insert("cardinal { ")
             + optional_graph_negative
             + pynutil.insert("integer: \"")
-            + cardinal_graph
+            + cardinal_graph_combined
             + pynutil.insert("\"")
             + pynutil.insert(" }")
             + pynutil.insert(NEMO_SPACE)
@@ -240,21 +181,39 @@ class MeasureFst(GraphFst):
             + pynutil.insert("tokens { cardinal { ")
             + optional_graph_negative
             + pynutil.insert("integer: \"")
-            + cardinal_graph
+            + cardinal_graph_combined
             + pynutil.insert("\"")
         )
 
-        graph = (
-            pynutil.add_weight(graph_decimal, 0.1)
-            | pynutil.add_weight(graph_cardinal, 0.1)
-            | pynutil.add_weight(graph_exceptions, 0.1)
-            | pynutil.add_weight(graph_dedh_dhai, -0.2)
-            | pynutil.add_weight(graph_savva, -0.1)
-            | pynutil.add_weight(graph_sadhe, -0.1)
-            | pynutil.add_weight(graph_paune, -0.5)
+        # Combine all patterns
+        final_graph = (
+            pynutil.add_weight(subgraph_decimal, 0.1)
+            | pynutil.add_weight(subgraph_cardinal, 0.1)
+            | unit_graph_standalone
+            | decimal_dash_alpha
+            | decimal_times
+            | pynutil.add_weight(graph_exceptions, 0.2)
         )
-        self.graph = graph.optimize()
 
-        final_graph = self.add_tokens(graph)
-        self.fst = final_graph
+        final_graph = self.add_tokens(final_graph)
+        self.fst = final_graph.optimize()
+
+    def get_range(self, cardinal: GraphFst):
+        """
+        Returns range forms for measure tagger, e.g. 2-3, 2x3, 2*2
+
+        Args:
+            cardinal: cardinal GraphFst
+        """
+        range_graph = cardinal + pynini.cross(pynini.union("-", " - "), " से ") + cardinal
+
+        for x in [" x ", "x"]:
+            range_graph |= cardinal + pynini.cross(x, " गुना ") + cardinal
+            if not self.deterministic:
+                range_graph |= cardinal + pynini.cross(x, " गुना ") + pynini.closure(cardinal, 0, 1)
+
+        for x in ["*", " * "]:
+            range_graph |= cardinal + pynini.cross(x, " गुना ") + cardinal
+
+        return range_graph.optimize()
 

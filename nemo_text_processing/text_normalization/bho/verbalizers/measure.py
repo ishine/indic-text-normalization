@@ -21,44 +21,66 @@ from nemo_text_processing.text_normalization.bho.graph_utils import NEMO_NOT_QUO
 class MeasureFst(GraphFst):
     """
     Finite state transducer for verbalizing measure, e.g.
-        measure { negative: "true" cardinal { integer: "ಹನ್ನೆರಡು" } units: "ಕಿಲೋಗ್ರಾಂ" } -> ಋಣಾತ್ಮಕ ಹನ್ನೆರಡು ಕಿಲೋಗ್ರಾಂ
-        measure { decimal { integer_part: "ಹನ್ನೆರಡು" fractional_part: "ಎರಡು" } units: "ಕಿಲೋಗ್ರಾಂ" } -> ಹನ್ನೆರಡು ದಶಮಲವ ಎರಡು ಕಿಲೋಗ್ರಾಂ
+        measure { negative: "true" cardinal { integer: "बारह" } units: "किलोग्राम" } -> ऋण बारह किलोग्राम
+        measure { decimal { integer_part: "बारह" fractional_part: "दो" } units: "किलोग्राम" } -> बारह दशमलव दो किलोग्राम
 
 
     Args:
         decimal: DecimalFst
-        cardinal: CardinalFs
+        cardinal: CardinalFst
         deterministic: if True will provide a single transduction option,
             for False multiple transduction are generated (used for audio-based normalization)
     """
 
-    def __init__(self, cardinal: GraphFst, decimal: GraphFst):
-        super().__init__(name="measure", kind="verbalize")
+    def __init__(self, deterministic: bool = True):
+        super().__init__(name="measure", kind="verbalize", deterministic=deterministic)
 
-        optional_graph_negative = pynini.closure(
-            pynutil.insert("negative: ") + pynini.cross("-", "\"true\"") + insert_space,
+        optional_sign = pynini.closure(
+            pynini.cross("negative: \"true\" ", " ऋण "),  # "negative" in Bhojpuri/Hindi
             0,
             1,
         )
 
         unit = pynutil.delete("units: \"") + pynini.closure(NEMO_NOT_QUOTE, 1) + pynutil.delete("\"") + delete_space
 
+        # Handle integer part
+        integer = (
+            pynutil.delete("integer: \"")
+            + pynini.closure(NEMO_NOT_QUOTE, 1)
+            + pynutil.delete("\"")
+        )
+
+        # Handle decimal parts
+        integer_part = (
+            pynutil.delete("integer_part: \"")
+            + pynini.closure(NEMO_NOT_QUOTE, 1)
+            + pynutil.delete("\"")
+        )
+        fractional_part = (
+            pynutil.delete("fractional_part: \"")
+            + pynini.closure(NEMO_NOT_QUOTE, 1)
+            + pynutil.delete("\"")
+        )
+
+        # Decimal graph
         graph_decimal = (
             pynutil.delete("decimal {")
             + delete_space
-            + optional_graph_negative
+            + optional_sign
+            + integer_part
             + delete_space
-            + decimal.numbers
+            + pynutil.insert(" दशमलव ")  # "decimal point" in Bhojpuri/Hindi
+            + fractional_part
             + delete_space
             + pynutil.delete("}")
         )
 
+        # Cardinal graph
         graph_cardinal = (
             pynutil.delete("cardinal {")
             + delete_space
-            + optional_graph_negative
-            + delete_space
-            + cardinal.numbers
+            + optional_sign
+            + integer
             + delete_space
             + pynutil.delete("}")
         )

@@ -115,15 +115,15 @@ class ClassifyFst(GraphFst):
 
             classify = (
                 pynutil.add_weight(whitelist_graph, 1.01)
-                | pynutil.add_weight(date_graph, 1.05)  # Higher priority for dates
+                | pynutil.add_weight(telephone_graph, 1.02)  # Telephone highest priority (numbers with dashes)
+                | pynutil.add_weight(date_graph, 1.04)  # Date before time (dates with separators)
                 | pynutil.add_weight(time_graph, 1.05)  # Higher priority for times
-                | pynutil.add_weight(decimal_graph, 1.08)  # Higher priority than cardinal (decimals are more specific)
+                | pynutil.add_weight(fraction_graph, 1.06)  # Fraction before cardinal (3/4 should be fraction, not cardinal)
+                | pynutil.add_weight(decimal_graph, 1.08)  # Decimal before cardinal
                 | pynutil.add_weight(cardinal_graph, 1.1)
-                | pynutil.add_weight(fraction_graph, 1.1)
                 | pynutil.add_weight(money_graph, 1.1)
-                | pynutil.add_weight(math_graph, 1.15)  # Math expressions after cardinals but before telephone
-                | pynutil.add_weight(telephone_graph, 1.2)  # Higher weight so cardinal matches first for short numbers
                 | pynutil.add_weight(ordinal_graph, 1.1)
+                | pynutil.add_weight(math_graph, 1.2)  # Math expressions lowest priority (avoid matching dashes as minus)
             )
 
             word_graph = WordFst(punctuation=punctuation, deterministic=deterministic).fst

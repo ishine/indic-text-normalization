@@ -119,6 +119,7 @@ class ClassifyFst(GraphFst):
 
             classify = (
                 pynutil.add_weight(whitelist_graph, 1.01)
+                | pynutil.add_weight(telephone_graph, 1.0)  # Telephone should match before cardinal/math
                 | pynutil.add_weight(date_graph, 1.05)  # Higher priority for dates
                 | pynutil.add_weight(time_graph, 1.05)  # Higher priority for times
                 | pynutil.add_weight(cardinal_graph, 1.1)
@@ -126,8 +127,7 @@ class ClassifyFst(GraphFst):
                 | pynutil.add_weight(fraction_graph, 1.1)
                 | pynutil.add_weight(measure_graph, 1.1)
                 | pynutil.add_weight(money_graph, 1.1)
-                | pynutil.add_weight(math_graph, 1.15)  # Math expressions after cardinals but before telephone
-                | pynutil.add_weight(telephone_graph, 1.2)  # Higher weight so cardinal matches first for short numbers
+                | pynutil.add_weight(math_graph, 1.15)  # Math expressions after cardinals
                 | pynutil.add_weight(ordinal_graph, 1.1)
             )
 

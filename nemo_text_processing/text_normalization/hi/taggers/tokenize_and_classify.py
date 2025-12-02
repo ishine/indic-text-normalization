@@ -14,6 +14,7 @@
 
 import logging
 import os
+import time
 
 import pynini
 from pynini.lib import pynutil
@@ -87,52 +88,81 @@ class ClassifyFst(GraphFst):
         else:
             logging.info(f"Creating ClassifyFst grammars.")
 
+            start_time = time.time()
             cardinal = CardinalFst(deterministic=deterministic)
             cardinal_graph = cardinal.fst
+            logging.debug(f"cardinal: {time.time() - start_time:.2f}s -- {cardinal_graph.num_states()} nodes")
 
-            decimal = DecimalFst(cardinal=cardinal, deterministic=deterministic)
-            decimal_graph = decimal.fst
-
-            fraction = FractionFst(cardinal=cardinal, deterministic=deterministic)
-            fraction_graph = fraction.fst
-
-            date = DateFst(cardinal=cardinal)
-            date_graph = date.fst
-
-            timefst = TimeFst(cardinal=cardinal)
-            time_graph = timefst.fst
-
-            measure = MeasureFst(cardinal=cardinal, decimal=decimal, fraction=fraction, deterministic=deterministic)
-            measure_graph = measure.fst
-
-            money = MoneyFst(cardinal=cardinal)
-            money_graph = money.fst
-
+            start_time = time.time()
             ordinal = OrdinalFst(cardinal=cardinal, deterministic=deterministic)
             ordinal_graph = ordinal.fst
+            logging.debug(f"ordinal: {time.time() - start_time:.2f}s -- {ordinal_graph.num_states()} nodes")
 
+            start_time = time.time()
+            decimal = DecimalFst(cardinal=cardinal, deterministic=deterministic)
+            decimal_graph = decimal.fst
+            logging.debug(f"decimal: {time.time() - start_time:.2f}s -- {decimal_graph.num_states()} nodes")
+
+            start_time = time.time()
+            fraction = FractionFst(cardinal=cardinal, deterministic=deterministic)
+            fraction_graph = fraction.fst
+            logging.debug(f"fraction: {time.time() - start_time:.2f}s -- {fraction_graph.num_states()} nodes")
+
+            start_time = time.time()
+            date = DateFst(cardinal=cardinal)
+            date_graph = date.fst
+            logging.debug(f"date: {time.time() - start_time:.2f}s -- {date_graph.num_states()} nodes")
+
+            start_time = time.time()
+            timefst = TimeFst(cardinal=cardinal)
+            time_graph = timefst.fst
+            logging.debug(f"time: {time.time() - start_time:.2f}s -- {time_graph.num_states()} nodes")
+
+            start_time = time.time()
+            measure = MeasureFst(cardinal=cardinal, decimal=decimal, fraction=fraction, deterministic=deterministic)
+            measure_graph = measure.fst
+            logging.debug(f"measure: {time.time() - start_time:.2f}s -- {measure_graph.num_states()} nodes")
+
+            start_time = time.time()
+            money = MoneyFst(cardinal=cardinal)
+            money_graph = money.fst
+            logging.debug(f"money: {time.time() - start_time:.2f}s -- {money_graph.num_states()} nodes")
+
+            start_time = time.time()
             from nemo_text_processing.text_normalization.hi.taggers.math import MathFst
             math = MathFst(cardinal=cardinal, deterministic=deterministic)
             math_graph = math.fst
+            logging.debug(f"math: {time.time() - start_time:.2f}s -- {math_graph.num_states()} nodes")
 
+            start_time = time.time()
             whitelist = WhiteListFst(
                 input_case=input_case, deterministic=deterministic, input_file=whitelist
             )
             whitelist_graph = whitelist.fst
+            logging.debug(f"whitelist: {time.time() - start_time:.2f}s -- {whitelist_graph.num_states()} nodes")
 
+            start_time = time.time()
             punctuation = PunctuationFst(deterministic=deterministic)
             punct_graph = punctuation.fst
+            logging.debug(f"punct: {time.time() - start_time:.2f}s -- {punct_graph.num_states()} nodes")
 
+            start_time = time.time()
             telephone = TelephoneFst()
             telephone_graph = telephone.fst
+            logging.debug(f"telephone: {time.time() - start_time:.2f}s -- {telephone_graph.num_states()} nodes")
 
+            start_time = time.time()
             electronic = ElectronicFst(cardinal=cardinal, deterministic=deterministic)
             electronic_graph = electronic.fst
+            logging.debug(f"electronic: {time.time() - start_time:.2f}s -- {electronic_graph.num_states()} nodes")
 
+            start_time = time.time()
             serial = SerialFst(cardinal=cardinal, ordinal=ordinal, deterministic=deterministic)
             serial_graph = serial.fst
+            logging.debug(f"serial: {time.time() - start_time:.2f}s -- {serial_graph.num_states()} nodes")
 
             # Create verbalizers for date and time for range
+            start_time = time.time()
             v_time = vTimeFst(cardinal=cardinal)
             v_time_graph = v_time.fst
             v_ordinal = vOrdinalFst(deterministic=deterministic)
@@ -146,6 +176,7 @@ class ClassifyFst(GraphFst):
                 cardinal=cardinal,
                 deterministic=deterministic,
             ).fst
+            logging.debug(f"range: {time.time() - start_time:.2f}s -- {range_graph.num_states()} nodes")
 
             # A quick fix to address money ranges: $150-$200
             dash = (pynutil.insert('name: "') + pynini.cross("-", "से") + pynutil.insert('"')).optimize()
@@ -169,9 +200,10 @@ class ClassifyFst(GraphFst):
                 | pynutil.add_weight(cardinal_graph, 1.1)
                 | pynutil.add_weight(ordinal_graph, 1.1)
                 | pynutil.add_weight(money_graph, 1.1)
-                | pynutil.add_weight(telephone_graph, 1.1)
+                | pynutil.add_weight(telephone_graph, 0.9)  # Higher priority than cardinal (lower weight = higher priority)
                 | pynutil.add_weight(electronic_graph, 1.11)
                 | pynutil.add_weight(fraction_graph, 1.1)
+                | pynutil.add_weight(math_graph, 1.1)
                 | pynutil.add_weight(range_graph, 1.1)
                 | pynutil.add_weight(serial_graph, 1.12)  # should be higher than the rest of the classes
                 | pynutil.add_weight(graph_range_money, 1.1)
@@ -184,8 +216,11 @@ class ClassifyFst(GraphFst):
             # roman_graph = RomanFst(deterministic=deterministic).fst
             # classify |= pynutil.add_weight(roman_graph, 1.1)
 
+            start_time = time.time()
             word_graph = WordFst(punctuation=punctuation, deterministic=deterministic).fst
+            logging.debug(f"word: {time.time() - start_time:.2f}s -- {word_graph.num_states()} nodes")
 
+            start_time = time.time()
             punct = pynutil.insert("tokens { ") + pynutil.add_weight(punct_graph, weight=2.1) + pynutil.insert(" }")
             punct = pynini.closure(
                 pynini.union(
@@ -214,7 +249,9 @@ class ClassifyFst(GraphFst):
             graph = delete_space + graph + delete_space
             graph = pynini.union(graph, punct)
 
+            start_time = time.time()
             self.fst = graph.optimize()
+            logging.debug(f"final graph optimization: {time.time() - start_time:.2f}s -- {self.fst.num_states()} nodes")
 
             if far_file:
                 generator_main(far_file, {"tokenize_and_classify": self.fst})

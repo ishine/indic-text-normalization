@@ -16,12 +16,12 @@ import pynini
 from pynini.lib import pynutil
 
 major_minor_currencies = {
-    "रुपए": "पैसे",
+    "रुपिया": "पइसा",
     "पाउंड": "पेंस",
     "वॉन": "जिओन",
     "डॉलर": "सेंट",
     "लीरा": "कुरस",
-    "टका": "पैसे",
+    "टका": "पइसा",
     "येन": "सेन",
     "नाइरा": "कोबो",
     "यूरो": "सेंट",
@@ -79,7 +79,7 @@ class MoneyFst(GraphFst):
             major_minor_graphs.append(graph_major_minor_partial)
 
             graph_minor_partial = (
-                pynutil.delete('integer_part: "शून्य"')
+                pynutil.delete('integer_part: "सुन्ना"')
                 + pynutil.delete(NEMO_SPACE)
                 + pynutil.delete('currency_maj: "')
                 + pynutil.delete(major)

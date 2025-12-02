@@ -15,7 +15,7 @@
 import pynini
 from pynini.lib import pynutil
 
-from nemo_text_processing.text_normalization.cg.graph_utils import GraphFst, insert_space
+from nemo_text_processing.text_normalization.cg.graph_utils import GraphFst, NEMO_DIGIT, insert_space
 from nemo_text_processing.text_normalization.cg.utils import get_abs_path
 
 quantities = pynini.string_file(get_abs_path("data/numbers/thousands.tsv"))
@@ -61,7 +61,20 @@ class DecimalFst(GraphFst):
         graph_digit = cardinal.digit | cardinal.zero
         cardinal_graph = cardinal.final_graph
 
-        self.graph = graph_digit + pynini.closure(insert_space + graph_digit).optimize()
+        # Convert Arabic digits (0-9) to Chhattisgarhi digits (०-९)
+        arabic_to_cg_digit = pynini.string_map([
+            ("0", "०"), ("1", "१"), ("2", "२"), ("3", "३"), ("4", "४"),
+            ("5", "५"), ("6", "६"), ("7", "७"), ("8", "८"), ("9", "९")
+        ]).optimize()
+        arabic_to_cg_number = pynini.closure(arabic_to_cg_digit).optimize()
+
+        cg_digit_sequence = (graph_digit + pynini.closure(insert_space + graph_digit)).optimize()
+        arabic_digit_input = pynini.closure(NEMO_DIGIT, 1)
+        arabic_digit_sequence = pynini.compose(
+            arabic_digit_input,
+            arabic_to_cg_number @ cg_digit_sequence,
+        ).optimize()
+        self.graph = (cg_digit_sequence | arabic_digit_sequence).optimize()
 
         point = pynutil.delete(".")
 

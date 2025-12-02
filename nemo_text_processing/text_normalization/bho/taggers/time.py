@@ -19,11 +19,7 @@ from nemo_text_processing.text_normalization.bho.graph_utils import (
     NEMO_BHO_ZERO,
     NEMO_DIGIT,
     NEMO_BHO_DIGIT,
-    BHO_DEDH,
-    BHO_DHAI,
-    BHO_PAUNE,
-    BHO_SADHE,
-    BHO_SAVVA,
+    NEMO_BHO_NON_ZERO,
     NEMO_SPACE,
     GraphFst,
     insert_space,
@@ -32,19 +28,11 @@ from nemo_text_processing.text_normalization.bho.utils import get_abs_path
 
 # Time patterns specific to time tagger
 BHO_DOUBLE_ZERO = "००"
-BHO_TIME_FIFTEEN = ":१५"  # :15
-BHO_TIME_THIRTY = ":३०"  # :30
-BHO_TIME_FORTYFIVE = ":४५"  # :45
 
-# Arabic time patterns
-AR_TIME_FIFTEEN = ":15"
-AR_TIME_THIRTY = ":30"
-AR_TIME_FORTYFIVE = ":45"
-
-# Convert Arabic digits (0-9) to Bhojpuri digits (०-९)
+# Convert Arabic digits (0-9) to Bhojpuri digits (०-९) - Devanagari script
 arabic_to_bhojpuri_digit = pynini.string_map([
     ("0", "०"), ("1", "१"), ("2", "२"), ("3", "३"), ("4", "४"),
-    ("5", "५"), ("6", "६"), ("7", "७"), ("8", "৮"), ("9", "९")
+    ("5", "५"), ("6", "६"), ("7", "७"), ("8", "८"), ("9", "९")
 ]).optimize()
 arabic_to_bhojpuri_number = pynini.closure(arabic_to_bhojpuri_digit).optimize()
 
@@ -59,6 +47,7 @@ class TimeFst(GraphFst):
         १२:३०:३०  -> time { hours: "बारह" minutes: "तीस" seconds: "तीस" }
         १:४०  -> time { hours: "एक" minutes: "चालीस" }
         १:००  -> time { hours: "एक" }
+        9:15  -> time { hours: "नौ" minutes: "पंद्रह" }
 
     Args:
         time: GraphFst
@@ -70,15 +59,25 @@ class TimeFst(GraphFst):
         super().__init__(name="time", kind="classify")
 
         delete_colon = pynutil.delete(":")
-        cardinal_graph = cardinal.digit | cardinal.teens_and_ties
+
+        # Delete optional leading zero (handles inputs like 09, 07, 00)
+        delete_leading_zero_bhojpuri = (
+            (NEMO_BHO_NON_ZERO + NEMO_BHO_DIGIT)  # keep 10-99 as-is
+            | (pynutil.delete(NEMO_BHO_ZERO) + NEMO_BHO_DIGIT)  # drop leading zero for 00-09
+            | NEMO_BHO_DIGIT  # allow single-digit inputs
+        ).optimize()
+        delete_leading_zero_arabic = (
+            (pynini.difference(NEMO_DIGIT, "0") + NEMO_DIGIT)  # keep 10-99 as-is
+            | (pynutil.delete("0") + NEMO_DIGIT)  # drop leading zero for 00-09
+            | NEMO_DIGIT  # allow single-digit inputs
+        ).optimize()
 
         # Support both Bhojpuri and Arabic digits for hours and minutes
-        # Create combined graphs that accept both Arabic and Bhojpuri digits
-        # Bhojpuri digits path: Bhojpuri digits -> hours_graph
-        bhojpuri_hour_path = pynini.compose(pynini.closure(NEMO_BHO_DIGIT, 1), hours_graph).optimize()
-        # Arabic digits path: Arabic digits -> convert to Bhojpuri -> hours_graph
+        # Bhojpuri digits path: delete optional leading zero -> hours_graph
+        bhojpuri_hour_path = pynini.compose(delete_leading_zero_bhojpuri, hours_graph).optimize()
+        # Arabic digits path: delete optional leading zero -> convert to Bhojpuri -> hours_graph
         arabic_hour_path = pynini.compose(
-            pynini.closure(NEMO_DIGIT, 1), 
+            delete_leading_zero_arabic,
             arabic_to_bhojpuri_number @ hours_graph
         ).optimize()
         hour_input = bhojpuri_hour_path | arabic_hour_path
@@ -102,72 +101,32 @@ class TimeFst(GraphFst):
         self.seconds = pynutil.insert("seconds: \"") + second_input + pynutil.insert("\" ")
 
         # Optional "बजे" after time (to avoid duplication when verbalizer adds it)
-        # Handle optional space(s) before "बजे"
         optional_baje = pynini.closure(
             pynini.closure(NEMO_SPACE, 0, 1) + pynutil.delete("बजे"), 0, 1
         ).optimize()
 
-        # hour minute seconds
+        # hour minute seconds - highest priority
         graph_hms = (
             self.hours + delete_colon + insert_space + self.minutes + delete_colon + insert_space + self.seconds + optional_baje
         )
 
-        # hour minute - NORMAL FORMAT (highest priority)
+        # hour minute - NORMAL FORMAT
         graph_hm = self.hours + delete_colon + insert_space + self.minutes + optional_baje
 
-        # hour
-        graph_h = self.hours + delete_colon + pynutil.delete(BHO_DOUBLE_ZERO) + optional_baje
-
-        dedh_dhai_graph = pynini.string_map([("१" + BHO_TIME_THIRTY, BHO_DEDH), ("२" + BHO_TIME_THIRTY, BHO_DHAI)])
-
-        savva_numbers = cardinal_graph + pynini.cross(BHO_TIME_FIFTEEN, "")
-        savva_graph = pynutil.insert(BHO_SAVVA) + pynutil.insert(NEMO_SPACE) + savva_numbers
-
-        sadhe_numbers = cardinal_graph + pynini.cross(BHO_TIME_THIRTY, "")
-        sadhe_graph = pynutil.insert(BHO_SADHE) + pynutil.insert(NEMO_SPACE) + sadhe_numbers
-
-        paune = pynini.string_file(get_abs_path("data/whitelist/paune_mappings.tsv"))
-        paune_numbers = paune + pynini.cross(BHO_TIME_FORTYFIVE, "")
-        paune_graph = pynutil.insert(BHO_PAUNE) + pynutil.insert(NEMO_SPACE) + paune_numbers
-
-        graph_dedh_dhai = (
-            pynutil.insert("morphosyntactic_features: \"")
-            + dedh_dhai_graph
-            + pynutil.insert("\"")
-            + pynutil.insert(NEMO_SPACE)
+        # hour:00 format - support both Bhojpuri and Arabic double zeros
+        arabic_double_zero = pynutil.delete("00")
+        graph_h = (
+            self.hours
+            + delete_colon
+            + (pynutil.delete(BHO_DOUBLE_ZERO) | arabic_double_zero)
+            + optional_baje
         )
 
-        graph_savva = (
-            pynutil.insert("morphosyntactic_features: \"")
-            + savva_graph
-            + pynutil.insert("\"")
-            + pynutil.insert(NEMO_SPACE)
-        )
-
-        graph_sadhe = (
-            pynutil.insert("morphosyntactic_features: \"")
-            + sadhe_graph
-            + pynutil.insert("\"")
-            + pynutil.insert(NEMO_SPACE)
-        )
-
-        graph_paune = (
-            pynutil.insert("morphosyntactic_features: \"")
-            + paune_graph
-            + pynutil.insert("\"")
-            + pynutil.insert(NEMO_SPACE)
-        )
-
-        # Prioritize normal hour:minute format over special Bhojpuri time expressions
-        # Use very high weight for normal format, very low weights for special expressions
+        # Prioritize: H:M:S > H:M > H:00
         final_graph = (
-            graph_hms
-            | pynutil.add_weight(graph_hm, 1.0)  # Highest priority for normal hour:minute format
-            | pynutil.add_weight(graph_h, 0.8)
-            | pynutil.add_weight(graph_dedh_dhai, 0.01)  # Very low weight - almost disabled
-            | pynutil.add_weight(graph_savva, 0.01)  # Very low weight - almost disabled
-            | pynutil.add_weight(graph_sadhe, 0.01)  # Very low weight - almost disabled
-            | pynutil.add_weight(graph_paune, 0.01)  # Very low weight - almost disabled
+            pynutil.add_weight(graph_hms, -0.1)  # Highest priority
+            | pynutil.add_weight(graph_hm, -0.05)  # Second priority
+            | graph_h  # Third priority
         )
 
         final_graph = self.add_tokens(final_graph)

@@ -15,7 +15,12 @@
 import pynini
 from pynini.lib import pynutil
 
-from nemo_text_processing.text_normalization.hi.graph_utils import GraphFst, insert_space
+from nemo_text_processing.text_normalization.hi.graph_utils import (
+    GraphFst,
+    NEMO_DIGIT,
+    NEMO_HI_DIGIT,
+    insert_space,
+)
 from nemo_text_processing.text_normalization.hi.utils import get_abs_path
 
 currency_graph = pynini.string_file(get_abs_path("data/money/currency.tsv"))
@@ -41,14 +46,28 @@ class MoneyFst(GraphFst):
 
         cardinal_graph = cardinal.final_graph
 
+        # Create a graph that deletes commas from digit sequences
+        # This handles Indian number format where commas are separators (e.g., 5,67,300)
+        any_digit = pynini.union(NEMO_DIGIT, NEMO_HI_DIGIT)
+        # Pattern: digit (comma? digit)* - accepts digits with optional commas, deletes commas
+        # This creates a transducer: input (with commas) -> output (without commas)
+        delete_commas = (
+            any_digit
+            + pynini.closure(pynini.closure(pynutil.delete(","), 0, 1) + any_digit)
+        ).optimize()
+        # Compose: numbers with commas -> delete commas -> cardinal conversion
+        # The composition works because delete_commas outputs digits, which cardinal_graph accepts as input
+        cardinal_with_commas = pynini.compose(delete_commas, cardinal_graph).optimize()
+
         optional_graph_negative = pynini.closure(
             pynutil.insert("negative: ") + pynini.cross("-", "\"true\"") + insert_space,
             0,
             1,
         )
         currency_major = pynutil.insert('currency_maj: "') + currency_graph + pynutil.insert('"')
-        integer = pynutil.insert('integer_part: "') + cardinal_graph + pynutil.insert('"')
-        fraction = pynutil.insert('fractional_part: "') + cardinal_graph + pynutil.insert('"')
+        # Use cardinal_with_commas (higher priority) to handle numbers with commas, fallback to regular cardinal_graph
+        integer = pynutil.insert('integer_part: "') + (pynutil.add_weight(cardinal_with_commas, -0.1) | cardinal_graph) + pynutil.insert('"')
+        fraction = pynutil.insert('fractional_part: "') + (pynutil.add_weight(cardinal_with_commas, -0.1) | cardinal_graph) + pynutil.insert('"')
         currency_minor = pynutil.insert('currency_min: "') + pynutil.insert("centiles") + pynutil.insert('"')
 
         graph_major_only = optional_graph_negative + currency_major + insert_space + integer

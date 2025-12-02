@@ -22,8 +22,9 @@ class TimeFst(GraphFst):
     """
     Finite state transducer for verbalizing time, e.g.
         time { hours: "বারো"  minutes: "দশ"  seconds: "দশ" } -> বারো বাজে দশ মিনিট দশ সেকেন্ড
-        time { hours: "সাত" minutes: "চল্লিশ"" } -> সাত বাজে চল্লিশ মিনিট
-        time { hours: "দশ" } -> দশ বাজে
+        time { hours: "সাত" minutes: "চল্লিশ" } -> সাত বাজে চল্লিশ মিনিট
+        time { hours: "দশ" } -> দশটা
+        time { morphosyntactic_features: "দেড়" } -> দেড়টা
 
     Args:
         deterministic: if True will provide a single transduction option,
@@ -46,8 +47,9 @@ class TimeFst(GraphFst):
         insert_minute = pynutil.insert("মিনিট")
         insert_second = pynutil.insert("সেকেন্ড")
         insert_baje = pynutil.insert("বাজে")
+        insert_ta = pynutil.insert("টা")
 
-        # hour minute second
+        # hour minute second - Format: hours + "বাজে" + minutes + "মিনিট" + seconds + "সেকেন্ড"
         graph_hms = (
             hour
             + delete_space
@@ -62,13 +64,18 @@ class TimeFst(GraphFst):
             + insert_second
         )
 
-        # hour minute
+        # Special time expressions (morphosyntactic_features) - Format: dedh/dhai/savva/sadhe/paune + "টা"
+        graph_quarter = (
+            pynutil.delete("morphosyntactic_features: \"") + pynini.closure(NEMO_NOT_QUOTE, 1) + pynutil.delete("\"")
+        )
+
+        # hour minute - Format: hours + "বাজে" + minutes + "মিনিট"
         graph_hm = hour + delete_space + insert_baje + insert_space + minute + delete_space + insert_minute
 
-        # hour
-        graph_h = hour + delete_space + insert_baje
+        # hour - Format: hours + "টা"
+        graph_h = hour + delete_space + insert_ta
 
-        self.graph = graph_hms | graph_hm | graph_h
+        self.graph = graph_hms | graph_hm | graph_h | graph_quarter
 
         final_graph = self.graph
 

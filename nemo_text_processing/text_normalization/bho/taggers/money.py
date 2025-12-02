@@ -25,23 +25,23 @@ from nemo_text_processing.text_normalization.bho.utils import get_abs_path
 
 currency_graph = pynini.string_file(get_abs_path("data/money/currency.tsv"))
 
-# Convert Arabic digits (0-9) to Bhojpuri digits (०-९)
+# Convert Arabic digits (0-9) to Bhojpuri digits (०-९) - Devanagari script
 arabic_to_bhojpuri_digit = pynini.string_map([
     ("0", "०"), ("1", "१"), ("2", "२"), ("3", "३"), ("4", "४"),
-    ("5", "५"), ("6", "६"), ("7", "७"), ("8", "৮"), ("9", "९")
+    ("5", "५"), ("6", "६"), ("7", "७"), ("8", "८"), ("9", "९")
 ]).optimize()
 arabic_to_bhojpuri_number = pynini.closure(arabic_to_bhojpuri_digit).optimize()
 
-# Bhojpuri suffixes that can follow money amounts
-bhojpuri_suffixes = pynini.union("க்கு", "க்கு", "க்கு", "க்கு").optimize()
+# Bhojpuri suffixes that can follow money amounts (Hindi/Bhojpuri postpositions)
+bhojpuri_suffixes = pynini.union("के", "को", "में", "का").optimize()
 
 
 class MoneyFst(GraphFst):
     """
     Finite state transducer for classifying money, suppletive aware, e.g.
-        ₹५० -> money { money { currency_maj: "ரூபாய்" integer_part: "ஐம்பது" }
-        ₹५०.५० -> money { currency_maj: "ரூபாய்" integer_part: "ஐம்பது" fractional_part: "ஐம்பது" currency_min: "centiles" }
-        ₹०.५० -> money { currency_maj: "ரூபாய்" integer_part: "பூஜ்யம்" fractional_part: "ஐம்பது" currency_min: "centiles" }
+        ₹५० -> money { currency_maj: "रुपया" integer_part: "पचास" }
+        ₹५०.५० -> money { currency_maj: "रुपया" integer_part: "पचास" fractional_part: "पचास" currency_min: "centiles" }
+        ₹०.५० -> money { currency_maj: "रुपया" integer_part: "शून्य" fractional_part: "पचास" currency_min: "centiles" }
     Note that the 'centiles' string is a placeholder to handle by the verbalizer by applying the corresponding minor currency denomination
 
     Args:
@@ -64,7 +64,6 @@ class MoneyFst(GraphFst):
         currency_major = pynutil.insert('currency_maj: "') + currency_graph + pynutil.insert('"')
         
         # Accept both Bhojpuri digits and Arabic digits (convert Arabic to Bhojpuri)
-        # Bhojpuri digits go directly to cardinal_graph, Arabic digits are converted first
         bhojpuri_digit_number = pynini.closure(NEMO_BHO_DIGIT, 1).optimize()
         arabic_digit_number = pynini.closure(NEMO_DIGIT, 1).optimize()
         # Convert Arabic digits to Bhojpuri digits, then compose with cardinal_graph

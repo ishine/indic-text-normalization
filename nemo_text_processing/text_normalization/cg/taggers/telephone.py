@@ -34,7 +34,7 @@ CG_LANDLINE_START_DIGITS = pynini.union("२", "३", "४", "६", "2", "3", "4
 
 delete_zero = pynutil.delete(CG_ZERO_DIGIT)
 delete_zero_optional = pynini.closure(delete_zero, 0, 1)
-insert_shunya = pynutil.insert('शून्य') + insert_space
+insert_shunya = pynutil.insert('सुन्ना') + insert_space
 
 # Load the number mappings from the TSV file
 digit_to_word = pynini.string_file(get_abs_path("data/telephone/number.tsv"))
@@ -200,9 +200,9 @@ def generate_pincode(context_keywords: pynini.Fst) -> pynini.Fst:
 class TelephoneFst(GraphFst):
     """
     Finite state transducer for tagging telephone numbers, e.g.
-        ९१५७११४००७ -> telephone { number_part: "शून्य नौ एक पाँच सात एक एक चार शून्य शून्य सात" }
-        +९१ ९२१०५१५६०६ -> telephone { country_code: "प्लस नौ एक", number_part: "नौ दो एक शून्य पाँच एक पाँच छह शून्य छह" }
-        १३७४-३०९९८८ -> telephone { number_part: "शून्य एक तीन सात चार तीन शून्य नौ नौ आठ आठ" }
+        ९१५७११४००७ -> telephone { number_part: "सुन्ना नौ एक पाँच सात एक एक चार सुन्ना सुन्ना सात" }
+        +९१ ९२१०५१५६०६ -> telephone { country_code: "प्लस नौ एक", number_part: "नौ दुई एक सुन्ना पाँच एक पाँच छै सुन्ना छै" }
+        १३७४-३०९९८८ -> telephone { number_part: "सुन्ना एक तीन सात चार तीन सुन्ना नौ नौ आठ आठ" }
 
     Args:
         deterministic: if True will provide a single transduction option,

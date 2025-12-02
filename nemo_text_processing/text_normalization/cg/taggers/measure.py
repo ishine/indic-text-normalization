@@ -21,12 +21,21 @@ from nemo_text_processing.text_normalization.cg.graph_utils import (
     CG_PAUNE,
     CG_SADHE,
     CG_SAVVA,
+    NEMO_DIGIT,
+    NEMO_CG_DIGIT,
     NEMO_SPACE,
     GraphFst,
     delete_space,
     insert_space,
 )
 from nemo_text_processing.text_normalization.cg.utils import get_abs_path
+
+# Convert Arabic digits (0-9) to Chhattisgarhi digits (०-९)
+arabic_to_cg_digit = pynini.string_map([
+    ("0", "०"), ("1", "१"), ("2", "२"), ("3", "३"), ("4", "४"),
+    ("5", "५"), ("6", "६"), ("7", "७"), ("8", "८"), ("9", "९")
+]).optimize()
+arabic_to_cg_number = pynini.closure(arabic_to_cg_digit).optimize()
 
 CG_POINT_FIVE = ".५"  # .5
 CG_ONE_POINT_FIVE = "१.५"  # 1.5
@@ -55,6 +64,19 @@ class MeasureFst(GraphFst):
     def __init__(self, cardinal: GraphFst, decimal: GraphFst):
         super().__init__(name="measure", kind="classify")
 
+        # Support both Chhattisgarhi and Arabic digits
+        cg_number_input = pynini.closure(NEMO_CG_DIGIT, 1)
+        cg_cardinal_graph = pynini.compose(cg_number_input, cardinal.final_graph).optimize()
+
+        arabic_number_input = pynini.closure(NEMO_DIGIT, 1)
+        arabic_cardinal_graph = pynini.compose(
+            arabic_number_input,
+            arabic_to_cg_number @ cardinal.final_graph
+        ).optimize()
+
+        cardinal_graph_combined = cg_cardinal_graph | arabic_cardinal_graph
+
+        # Keep the original cardinal_graph for internal use (quarterly units, etc.)
         cardinal_graph = (
             cardinal.zero
             | cardinal.digit
@@ -199,7 +221,7 @@ class MeasureFst(GraphFst):
             pynutil.insert("cardinal { ")
             + optional_graph_negative
             + pynutil.insert("integer: \"")
-            + cardinal_graph
+            + cardinal_graph_combined
             + pynutil.insert("\"")
             + pynutil.insert(NEMO_SPACE)
             + pynutil.insert("}")
@@ -212,7 +234,7 @@ class MeasureFst(GraphFst):
             pynutil.insert("cardinal { ")
             + optional_graph_negative
             + pynutil.insert("integer: \"")
-            + cardinal_graph
+            + cardinal_graph_combined
             + pynutil.insert("\"")
             + pynutil.insert(" }")
             + pynutil.insert(NEMO_SPACE)
@@ -225,7 +247,7 @@ class MeasureFst(GraphFst):
             + pynutil.insert("tokens { cardinal { ")
             + optional_graph_negative
             + pynutil.insert("integer: \"")
-            + cardinal_graph
+            + cardinal_graph_combined
             + pynutil.insert("\"")
         )
 
