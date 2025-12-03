@@ -1,4 +1,4 @@
-**NeMo Text Processing for Indic Langveages**
+**NeMo Text Processing**
 ==========================
 
 Introduction
