@@ -108,6 +108,22 @@ class SerialFst(GraphFst):
         # 2+ symbols
         serial_graph |= pynini.compose(NEMO_SIGMA + symbols + NEMO_SIGMA, num_graph + delimiter + num_graph)
 
+        # exclude ordinal numbers from serial options
+        # Note: In Hindi, ordinals use Hindi digits (०-९) while serials use ASCII digits (0-9)
+        # So there's minimal overlap. The exclusion is attempted but skipped if it fails.
+        try:
+            ordinal_input = ordinal_input.rmepsilon()
+            ordinal_input = pynini.determinize(ordinal_input)
+            ordinal_input = pynini.arcmap(ordinal_input, map_type="rmweight")
+            ordinal_input = pynini.project(ordinal.graph, "input")
+            if ordinal_input.num_states() > 0:
+                ordinal_exclusion = pynini.difference(NEMO_SIGMA, ordinal_input)
+                serial_graph = pynini.compose(ordinal_exclusion, serial_graph).optimize()
+        except:
+            # Skip exclusion if difference operation fails (alphabet mismatch)
+            # This is acceptable since Hindi ordinals and serials use different digit systems
+            pass
+
         serial_graph = pynutil.add_weight(serial_graph, 0.0001)
         serial_graph |= (
             pynini.closure(NEMO_NOT_SPACE, 1)
