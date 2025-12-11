@@ -1,4 +1,4 @@
-**NeMo Text Processing**
+*NeMo Text Processing*
 ==========================
 
 Introduction
