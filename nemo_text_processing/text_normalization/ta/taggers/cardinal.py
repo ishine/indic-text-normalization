@@ -265,8 +265,38 @@ class CardinalFst(GraphFst):
         arabic_digit_input = pynini.closure(NEMO_DIGIT, 1)
         arabic_final_graph = pynini.compose(arabic_digit_input, arabic_to_tamil_number @ tamil_final_graph).optimize()
         
+        # Comma verbalization: read commas as "கமா"
+        # Example: 1,234,567 -> "ஒன்று கமா இரு நூற்றுப் முப்பத்துநான்கு கமா ஐந் நூற்றுப் அறுபத்தேழு"
+        comma_word = pynutil.insert(" ") + pynini.cross(",", "கமா") + pynutil.insert(" ")
+        
+        # Graph for comma-separated numbers (both Arabic and Tamil digits)
+        # Pattern: digit_group + (comma + digit_group)+
+        # Each group is 1-3 digits that gets converted to Tamil words
+        digit_group_arabic = pynini.closure(NEMO_DIGIT, 1, 3)
+        digit_group_tamil = pynini.closure(NEMO_TA_DIGIT, 1, 3)
+        
+        # Convert each group to words
+        group_to_words_arabic = pynini.compose(digit_group_arabic, arabic_to_tamil_number @ tamil_final_graph)
+        group_to_words_tamil = pynini.compose(digit_group_tamil, tamil_final_graph)
+        
+        # Build comma-separated pattern for Arabic digits
+        comma_separated_arabic = (
+            group_to_words_arabic + 
+            pynini.closure(comma_word + group_to_words_arabic, 1)  # At least one comma required
+        ).optimize()
+        
+        # Build comma-separated pattern for Tamil digits
+        comma_separated_tamil = (
+            group_to_words_tamil + 
+            pynini.closure(comma_word + group_to_words_tamil, 1)  # At least one comma required
+        ).optimize()
+        
+        # Combine comma-separated patterns
+        comma_separated_graph = comma_separated_arabic | comma_separated_tamil
+        
         # Combine both Tamil and Arabic digit paths
-        final_graph = tamil_final_graph | arabic_final_graph
+        # Priority: comma-separated numbers first (higher priority), then regular numbers
+        final_graph = pynutil.add_weight(comma_separated_graph, 0.9) | tamil_final_graph | arabic_final_graph
 
         # Handle negative numbers
         optional_minus_graph = pynini.closure(

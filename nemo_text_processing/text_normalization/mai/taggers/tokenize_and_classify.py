@@ -94,7 +94,7 @@ class ClassifyFst(GraphFst):
             timefst = TimeFst(cardinal=cardinal)
             time_graph = timefst.fst
 
-            measure = MeasureFst(cardinal=cardinal, decimal=decimal)
+            measure = MeasureFst(cardinal=cardinal, decimal=decimal, fraction=fraction, deterministic=deterministic)
             measure_graph = measure.fst
 
             money = MoneyFst(cardinal=cardinal)

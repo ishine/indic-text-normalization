@@ -27,7 +27,9 @@ from nemo_text_processing.text_normalization.gu.graph_utils import (
     generator_main,
 )
 from nemo_text_processing.text_normalization.gu.taggers.cardinal import CardinalFst
+from nemo_text_processing.text_normalization.gu.taggers.date import DateFst
 from nemo_text_processing.text_normalization.gu.taggers.decimal import DecimalFst
+from nemo_text_processing.text_normalization.gu.taggers.fraction import FractionFst
 from nemo_text_processing.text_normalization.gu.taggers.money import MoneyFst
 from nemo_text_processing.text_normalization.gu.taggers.ordinal import OrdinalFst
 from nemo_text_processing.text_normalization.gu.taggers.punctuation import PunctuationFst
@@ -90,6 +92,20 @@ class ClassifyFst(GraphFst):
             ordinal = OrdinalFst(cardinal=cardinal, deterministic=deterministic)
             ordinal_graph = ordinal.fst
 
+            fraction = FractionFst(cardinal=cardinal, deterministic=deterministic)
+            fraction_graph = fraction.fst
+
+            date = DateFst(cardinal=cardinal)
+            date_graph = date.fst
+
+            from nemo_text_processing.text_normalization.gu.taggers.measure import MeasureFst
+            measure = MeasureFst(cardinal=cardinal, decimal=decimal, fraction=fraction, deterministic=deterministic)
+            measure_graph = measure.fst
+
+            from nemo_text_processing.text_normalization.gu.taggers.telephone import TelephoneFst
+            telephone = TelephoneFst()
+            telephone_graph = telephone.fst
+
             from nemo_text_processing.text_normalization.gu.taggers.math import MathFst
             math = MathFst(cardinal=cardinal, deterministic=deterministic)
             math_graph = math.fst
@@ -103,9 +119,13 @@ class ClassifyFst(GraphFst):
 
             classify = (
                 pynutil.add_weight(whitelist_graph, 1.01)
+                | pynutil.add_weight(telephone_graph, 1.02)  # Telephone before time
                 | pynutil.add_weight(time_graph, 1.05)  # Higher priority for times
+                | pynutil.add_weight(date_graph, 1.09)  # Dates before cardinals
+                | pynutil.add_weight(measure_graph, 1.1)  # Measures with cardinals
                 | pynutil.add_weight(cardinal_graph, 1.1)
                 | pynutil.add_weight(decimal_graph, 1.1)
+                | pynutil.add_weight(fraction_graph, 1.1)
                 | pynutil.add_weight(money_graph, 1.1)
                 | pynutil.add_weight(math_graph, 1.15)  # Math expressions after cardinals
                 | pynutil.add_weight(ordinal_graph, 1.1)

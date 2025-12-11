@@ -71,30 +71,61 @@ class TimeFst(GraphFst):
         delete_colon = pynutil.delete(":")
         cardinal_graph = cardinal.digit | cardinal.teens_and_ties
 
+        # Delete leading zeros from double-digit numbers (like English)
+        # Pattern matches: "01"->"1", "02"->"2", ..., "09"->"9", "00"->"0", "12"->"12", "9"->"9"
+        # For Arabic: handle all leading zero cases (01-09) by deleting leading "0", keep "12" as is
+        delete_leading_zero_arabic = (
+            # Match two digits (handles "00", "01", "02", ..., "09", "10", ..., "23")
+            NEMO_DIGIT + NEMO_DIGIT
+        ) | (
+            # Match optional leading "0" (0 or 1 times) + digit
+            # This handles: "0" + digit (like "09" -> "9") OR just digit (like "9" -> "9")
+            pynini.closure(pynutil.delete("0"), 0, 1) + NEMO_DIGIT
+        )
+        # For Maithili: same pattern with Maithili digits
+        delete_leading_zero_maithili = (
+            # Match two Maithili digits
+            NEMO_MAI_DIGIT + NEMO_MAI_DIGIT
+        ) | (
+            # Match optional leading "०" (0 or 1 times) + Maithili digit
+            pynini.closure(pynutil.delete("०"), 0, 1) + NEMO_MAI_DIGIT
+        )
+
         # Support both Maithili and Arabic digits for hours and minutes
-        # Create combined graphs that accept both Arabic and Maithili digits
-        # Maithili digits path: Maithili digits -> hours_graph
-        Maithili_hour_path = pynini.compose(pynini.closure(NEMO_MAI_DIGIT, 1), hours_graph).optimize()
-        # Arabic digits path: Arabic digits -> convert to Maithili -> hours_graph
+        # For hours: delete leading zeros, then convert to Maithili if needed, then map to hours_graph
+        # Maithili digits path: Maithili digits (with leading zero deletion) -> hours_graph
+        maithili_hour_path = pynini.compose(
+            delete_leading_zero_maithili,
+            hours_graph
+        ).optimize()
+        # Arabic digits path: delete leading zero -> convert to Maithili -> hours_graph
         arabic_hour_path = pynini.compose(
-            pynini.closure(NEMO_DIGIT, 1), 
+            delete_leading_zero_arabic,
             arabic_to_maithili_number @ hours_graph
         ).optimize()
-        hour_input = Maithili_hour_path | arabic_hour_path
+        hour_input = maithili_hour_path | arabic_hour_path
 
-        Maithili_minute_path = pynini.compose(pynini.closure(NEMO_MAI_DIGIT, 1), minutes_graph).optimize()
+        # For minutes: same approach
+        maithili_minute_path = pynini.compose(
+            delete_leading_zero_maithili,
+            minutes_graph
+        ).optimize()
         arabic_minute_path = pynini.compose(
-            pynini.closure(NEMO_DIGIT, 1),
+            delete_leading_zero_arabic,
             arabic_to_maithili_number @ minutes_graph
         ).optimize()
-        minute_input = Maithili_minute_path | arabic_minute_path
+        minute_input = maithili_minute_path | arabic_minute_path
 
-        Maithili_second_path = pynini.compose(pynini.closure(NEMO_MAI_DIGIT, 1), seconds_graph).optimize()
+        # For seconds: same approach
+        maithili_second_path = pynini.compose(
+            delete_leading_zero_maithili,
+            seconds_graph
+        ).optimize()
         arabic_second_path = pynini.compose(
-            pynini.closure(NEMO_DIGIT, 1),
+            delete_leading_zero_arabic,
             arabic_to_maithili_number @ seconds_graph
         ).optimize()
-        second_input = Maithili_second_path | arabic_second_path
+        second_input = maithili_second_path | arabic_second_path
 
         self.hours = pynutil.insert("hours: \"") + hour_input + pynutil.insert("\" ")
         self.minutes = pynutil.insert("minutes: \"") + minute_input + pynutil.insert("\" ")
@@ -109,9 +140,9 @@ class TimeFst(GraphFst):
         graph_hm = self.hours + delete_colon + insert_space + self.minutes
 
         # hour - support both Maithili and Arabic double zero
-        Maithili_double_zero = pynutil.delete(MAI_DOUBLE_ZERO)
+        maithili_double_zero = pynutil.delete(MAI_DOUBLE_ZERO)
         arabic_double_zero = pynutil.delete("00")
-        double_zero = Maithili_double_zero | arabic_double_zero
+        double_zero = maithili_double_zero | arabic_double_zero
         graph_h = self.hours + delete_colon + double_zero
 
         # Support both Maithili and Arabic time patterns for dedh/dhai

@@ -72,26 +72,58 @@ class TimeFst(GraphFst):
         delete_colon = pynutil.delete(":")
         cardinal_graph = cardinal.digit | cardinal.teens_and_ties
 
+        # Delete leading zeros from double-digit numbers (like Hindi/English)
+        # Pattern matches: "01"->"1", "02"->"2", ..., "09"->"9", "00"->"0", "12"->"12", "9"->"9"
+        # For Arabic: handle all leading zero cases (01-09) by deleting leading "0", keep "12" as is
+        delete_leading_zero_arabic = (
+            # Match two digits (handles "00", "01", "02", ..., "09", "10", ..., "23")
+            NEMO_DIGIT + NEMO_DIGIT
+        ) | (
+            # Match optional leading "0" (0 or 1 times) + digit
+            # This handles: "0" + digit (like "09" -> "9") OR just digit (like "9" -> "9")
+            pynini.closure(pynutil.delete("0"), 0, 1) + NEMO_DIGIT
+        )
+        # For Magadhi: same pattern with Magadhi digits
+        delete_leading_zero_magadhi = (
+            # Match two Magadhi digits
+            NEMO_MAG_DIGIT + NEMO_MAG_DIGIT
+        ) | (
+            # Match optional leading "०" (0 or 1 times) + Magadhi digit
+            pynini.closure(pynutil.delete("०"), 0, 1) + NEMO_MAG_DIGIT
+        )
+
         # Support both Magadhi and Arabic digits for hours and minutes
-        # Magadhi digits path: Magadhi digits -> hours_graph
-        magadhi_hour_path = pynini.compose(pynini.closure(NEMO_MAG_DIGIT, 1), hours_graph).optimize()
-        # Arabic digits path: Arabic digits -> convert to Magadhi -> hours_graph
+        # For hours: delete leading zeros, then convert to Magadhi if needed, then map to hours_graph
+        # Magadhi digits path: Magadhi digits (with leading zero deletion) -> hours_graph
+        magadhi_hour_path = pynini.compose(
+            delete_leading_zero_magadhi,
+            hours_graph
+        ).optimize()
+        # Arabic digits path: delete leading zero -> convert to Magadhi -> hours_graph
         arabic_hour_path = pynini.compose(
-            pynini.closure(NEMO_DIGIT, 1), 
+            delete_leading_zero_arabic,
             arabic_to_magadhi_number @ hours_graph
         ).optimize()
         hour_input = magadhi_hour_path | arabic_hour_path
 
-        magadhi_minute_path = pynini.compose(pynini.closure(NEMO_MAG_DIGIT, 1), minutes_graph).optimize()
+        # For minutes: same approach
+        magadhi_minute_path = pynini.compose(
+            delete_leading_zero_magadhi,
+            minutes_graph
+        ).optimize()
         arabic_minute_path = pynini.compose(
-            pynini.closure(NEMO_DIGIT, 1),
+            delete_leading_zero_arabic,
             arabic_to_magadhi_number @ minutes_graph
         ).optimize()
         minute_input = magadhi_minute_path | arabic_minute_path
 
-        magadhi_second_path = pynini.compose(pynini.closure(NEMO_MAG_DIGIT, 1), seconds_graph).optimize()
+        # For seconds: same approach
+        magadhi_second_path = pynini.compose(
+            delete_leading_zero_magadhi,
+            seconds_graph
+        ).optimize()
         arabic_second_path = pynini.compose(
-            pynini.closure(NEMO_DIGIT, 1),
+            delete_leading_zero_arabic,
             arabic_to_magadhi_number @ seconds_graph
         ).optimize()
         second_input = magadhi_second_path | arabic_second_path
@@ -100,32 +132,44 @@ class TimeFst(GraphFst):
         self.minutes = pynutil.insert("minutes: \"") + minute_input + pynutil.insert("\" ")
         self.seconds = pynutil.insert("seconds: \"") + second_input + pynutil.insert("\" ")
 
-        # Optional "बजे" after time (to avoid duplication when verbalizer adds it)
-        optional_baje = pynini.closure(
-            pynini.closure(NEMO_SPACE, 0, 1) + pynutil.delete("बजे"), 0, 1
-        ).optimize()
-
         # hour minute seconds
         graph_hms = (
-            self.hours + delete_colon + insert_space + self.minutes + delete_colon + insert_space + self.seconds + optional_baje
+            self.hours + delete_colon + insert_space + self.minutes + delete_colon + insert_space + self.seconds
         )
 
-        # hour minute - NORMAL FORMAT (highest priority)
-        graph_hm = self.hours + delete_colon + insert_space + self.minutes + optional_baje
+        # hour minute
+        graph_hm = self.hours + delete_colon + insert_space + self.minutes
 
-        # hour
-        graph_h = self.hours + delete_colon + pynutil.delete(MAG_DOUBLE_ZERO) + optional_baje
+        # hour - support both Magadhi and Arabic double zero
+        magadhi_double_zero = pynutil.delete(MAG_DOUBLE_ZERO)
+        arabic_double_zero = pynutil.delete("00")
+        double_zero = magadhi_double_zero | arabic_double_zero
+        graph_h = self.hours + delete_colon + double_zero
 
-        dedh_dhai_graph = pynini.string_map([("१" + MAG_TIME_THIRTY, MAG_DEDH), ("२" + MAG_TIME_THIRTY, MAG_DHAI)])
+        # Support both Magadhi and Arabic time patterns for dedh/dhai
+        dedh_dhai_graph = (
+            pynini.string_map([("१" + MAG_TIME_THIRTY, MAG_DEDH), ("२" + MAG_TIME_THIRTY, MAG_DHAI)])
+            | pynini.string_map([("1" + AR_TIME_THIRTY, MAG_DEDH), ("2" + AR_TIME_THIRTY, MAG_DHAI)])
+        )
 
-        savva_numbers = cardinal_graph + pynini.cross(MAG_TIME_FIFTEEN, "")
+        # Support both Magadhi and Arabic time patterns
+        savva_numbers = (
+            (cardinal_graph + pynini.cross(MAG_TIME_FIFTEEN, ""))
+            | (cardinal_graph + pynini.cross(AR_TIME_FIFTEEN, ""))
+        )
         savva_graph = pynutil.insert(MAG_SAVVA) + pynutil.insert(NEMO_SPACE) + savva_numbers
 
-        sadhe_numbers = cardinal_graph + pynini.cross(MAG_TIME_THIRTY, "")
+        sadhe_numbers = (
+            (cardinal_graph + pynini.cross(MAG_TIME_THIRTY, ""))
+            | (cardinal_graph + pynini.cross(AR_TIME_THIRTY, ""))
+        )
         sadhe_graph = pynutil.insert(MAG_SADHE) + pynutil.insert(NEMO_SPACE) + sadhe_numbers
 
         paune = pynini.string_file(get_abs_path("data/whitelist/paune_mappings.tsv"))
-        paune_numbers = paune + pynini.cross(MAG_TIME_FORTYFIVE, "")
+        paune_numbers = (
+            (paune + pynini.cross(MAG_TIME_FORTYFIVE, ""))
+            | (paune + pynini.cross(AR_TIME_FORTYFIVE, ""))
+        )
         paune_graph = pynutil.insert(MAG_PAUNE) + pynutil.insert(NEMO_SPACE) + paune_numbers
 
         graph_dedh_dhai = (
@@ -156,15 +200,15 @@ class TimeFst(GraphFst):
             + pynutil.insert(NEMO_SPACE)
         )
 
-        # Prioritize normal hour:minute format over special Magadhi time expressions
+        # Match Hindi weights for consistency
         final_graph = (
             graph_hms
-            | pynutil.add_weight(graph_hm, 1.0)  # Highest priority for normal hour:minute format
-            | pynutil.add_weight(graph_h, 0.8)
-            | pynutil.add_weight(graph_dedh_dhai, 0.01)  # Very low weight
-            | pynutil.add_weight(graph_savva, 0.01)  # Very low weight
-            | pynutil.add_weight(graph_sadhe, 0.01)  # Very low weight
-            | pynutil.add_weight(graph_paune, 0.01)  # Very low weight
+            | pynutil.add_weight(graph_hm, 0.3)
+            | pynutil.add_weight(graph_h, 0.3)
+            | pynutil.add_weight(graph_dedh_dhai, 0.1)
+            | pynutil.add_weight(graph_savva, 0.2)
+            | pynutil.add_weight(graph_sadhe, 0.2)
+            | pynutil.add_weight(graph_paune, 0.1)
         )
 
         final_graph = self.add_tokens(final_graph)

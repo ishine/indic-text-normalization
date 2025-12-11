@@ -119,9 +119,9 @@ class ClassifyFst(GraphFst):
 
             classify = (
                 pynutil.add_weight(whitelist_graph, 1.01)
+                | pynutil.add_weight(telephone_graph, 0.9)  # HIGHEST priority for telephone (before cardinal/math)
                 | pynutil.add_weight(time_graph, 1.05)  # Higher priority for times
                 | pynutil.add_weight(date_graph, 1.05)  # Higher priority for dates
-                | pynutil.add_weight(telephone_graph, 1.05)  # Higher priority for telephone
                 | pynutil.add_weight(measure_graph, 1.05)  # Higher priority for measures
                 | pynutil.add_weight(cardinal_graph, 1.1)
                 | pynutil.add_weight(decimal_graph, 1.1)

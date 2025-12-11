@@ -58,7 +58,14 @@ MIN_NEG_WEIGHT = -0.0001
 MIN_POS_WEIGHT = 0.0001
 INPUT_CASED = "cased"
 INPUT_LOWER_CASED = "lower_cased"
-MINUS = pynini.union(" બાદબાકી ", " બાદબાકી ").optimize()
+MINUS = pynini.union(" ઋણાત્મક ", " ઋણાત્મક ").optimize()
+
+# Gujarati quarterly measurement constants
+GU_DODH = "દોઢ"  # 1.5
+GU_ADHI = "અઢી"  # 2.5
+GU_SAVA = "સવા"  # quarter more (X.25)
+GU_SADA = "સાડા"  # half more (X.5)
+GU_PONA = "પોણા"  # quarter less (X.75)
 
 # Gujarati time-specific constants
 GU_DEDH = "અડધું"  # 1.5

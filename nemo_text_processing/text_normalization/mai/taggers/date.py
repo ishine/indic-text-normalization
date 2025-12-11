@@ -16,6 +16,7 @@ import pynini
 from pynini.lib import pynutil
 
 from nemo_text_processing.text_normalization.mai.graph_utils import (
+    NEMO_DIGIT,
     NEMO_MAI_DIGIT,
     NEMO_MAI_NON_ZERO,
     NEMO_MAI_ZERO,
@@ -23,6 +24,13 @@ from nemo_text_processing.text_normalization.mai.graph_utils import (
     insert_space,
 )
 from nemo_text_processing.text_normalization.mai.utils import get_abs_path
+
+# Convert Arabic digits (0-9) to Maithili digits (०-९)
+arabic_to_maithili_digit = pynini.string_map([
+    ("0", "०"), ("1", "१"), ("2", "२"), ("3", "३"), ("4", "४"),
+    ("5", "५"), ("6", "६"), ("7", "७"), ("8", "८"), ("9", "९")
+]).optimize()
+arabic_to_maithili_number = pynini.closure(arabic_to_maithili_digit).optimize()
 
 days = pynini.string_file(get_abs_path("data/date/days.tsv"))
 months = pynini.string_file(get_abs_path("data/date/months.tsv"))
@@ -58,12 +66,42 @@ class DateFst(GraphFst):
     def __init__(self, cardinal: GraphFst):
         super().__init__(name="date", kind="classify")
 
-        graph_year_thousands = pynini.compose(
-            (NEMO_MAI_DIGIT + NEMO_MAI_ZERO + NEMO_MAI_DIGIT + NEMO_MAI_DIGIT), cardinal.graph_thousands
+        # Support both Maithili and Arabic digits for dates
+        # Year patterns: 4-digit years (e.g., 2024, २०२४)
+        # Pattern for thousands: X0XX (e.g., 2024 -> 2०24)
+        # Pattern for hundreds: X1-9XX (e.g., 1999 -> 1९99)
+        
+        # Year pattern definitions
+        year_pattern_thousands = (NEMO_MAI_DIGIT + NEMO_MAI_ZERO + NEMO_MAI_DIGIT + NEMO_MAI_DIGIT)
+        year_pattern_hundreds = (NEMO_MAI_DIGIT + NEMO_MAI_NON_ZERO + NEMO_MAI_DIGIT + NEMO_MAI_DIGIT)
+        
+        # Maithili digits for year patterns
+        maithili_year_thousands = pynini.compose(
+            year_pattern_thousands, cardinal.graph_thousands
         )
-        graph_year_hundreds_as_thousands = pynini.compose(
-            (NEMO_MAI_DIGIT + NEMO_MAI_NON_ZERO + NEMO_MAI_DIGIT + NEMO_MAI_DIGIT), cardinal.graph_hundreds_as_thousand
+        maithili_year_hundreds_as_thousands = pynini.compose(
+            year_pattern_hundreds, cardinal.graph_hundreds_as_thousand
         )
+        
+        # Arabic digits for year patterns - convert to Maithili first
+        # Convert 4-digit Arabic year (e.g., "2024") to Maithili ("२०२४"), then match patterns
+        arabic_year_4digits = (NEMO_DIGIT + NEMO_DIGIT + NEMO_DIGIT + NEMO_DIGIT)
+        # Convert Arabic to Maithili
+        arabic_to_maithili_year = arabic_year_4digits @ arabic_to_maithili_number
+        
+        # Match converted Maithili year against patterns and compose with cardinal
+        arabic_year_thousands = pynini.compose(
+            arabic_to_maithili_year,
+            pynini.compose(year_pattern_thousands, cardinal.graph_thousands)
+        )
+        arabic_year_hundreds_as_thousands = pynini.compose(
+            arabic_to_maithili_year,
+            pynini.compose(year_pattern_hundreds, cardinal.graph_hundreds_as_thousand)
+        )
+        
+        # Combined year graphs (supports both Maithili and Arabic digits)
+        graph_year_thousands = maithili_year_thousands | arabic_year_thousands
+        graph_year_hundreds_as_thousands = maithili_year_hundreds_as_thousands | arabic_year_hundreds_as_thousands
 
         cardinal_graph = pynini.union(
             digit, teens_and_ties, cardinal.graph_hundreds, graph_year_thousands, graph_year_hundreds_as_thousands
@@ -74,9 +112,31 @@ class DateFst(GraphFst):
         delete_dash = pynutil.delete("-")
         delete_slash = pynutil.delete("/")
 
-        days_graph = pynutil.insert("day: \"") + days + pynutil.insert("\"") + insert_space
-
-        months_graph = pynutil.insert("month: \"") + months + pynutil.insert("\"") + insert_space
+        # Support both Maithili and Arabic digits for days and months
+        # Maithili digits path: Maithili digits -> days/months mapping
+        maithili_days_graph = pynutil.insert("day: \"") + days + pynutil.insert("\"") + insert_space
+        maithili_months_graph = pynutil.insert("month: \"") + months + pynutil.insert("\"") + insert_space
+        
+        # Arabic digits path: Arabic digits -> convert to Maithili -> days/months mapping
+        # Day pattern: 1-31 (can have leading zero: 01-09, or no leading zero: 1-31)
+        # Match 1-2 digit Arabic numbers
+        arabic_day_input = pynini.closure(NEMO_DIGIT, 1, 2)
+        arabic_days_graph = pynutil.insert("day: \"") + pynini.compose(
+            arabic_day_input,
+            arabic_to_maithili_number @ days
+        ) + pynutil.insert("\"") + insert_space
+        
+        # Month pattern: 1-12 (can have leading zero: 01-09, or no leading zero: 1-12)
+        # Match 1-2 digit Arabic numbers
+        arabic_month_input = pynini.closure(NEMO_DIGIT, 1, 2)
+        arabic_months_graph = pynutil.insert("month: \"") + pynini.compose(
+            arabic_month_input,
+            arabic_to_maithili_number @ months
+        ) + pynutil.insert("\"") + insert_space
+        
+        # Combined graphs (supports both Maithili and Arabic digits)
+        days_graph = maithili_days_graph | arabic_days_graph
+        months_graph = maithili_months_graph | arabic_months_graph
 
         years_graph = pynutil.insert("year: \"") + graph_year + pynutil.insert("\"") + insert_space
 
@@ -91,8 +151,19 @@ class DateFst(GraphFst):
 
         range_graph = pynini.cross("-", "से")
 
-        # Graph for year
-        century_number = pynini.compose(pynini.closure(NEMO_MAI_DIGIT, 1), cardinal_graph) + pynini.accep("वीं")
+        # Graph for year - support both Maithili and Arabic digits
+        # Maithili digits path
+        maithili_century_input = pynini.closure(NEMO_MAI_DIGIT, 1)
+        maithili_century_number = pynini.compose(maithili_century_input, cardinal_graph) + pynini.accep("वीं")
+        
+        # Arabic digits path
+        arabic_century_input = pynini.closure(NEMO_DIGIT, 1)
+        arabic_century_number = pynini.compose(
+            arabic_century_input,
+            arabic_to_maithili_number @ cardinal_graph
+        ) + pynini.accep("वीं")
+        
+        century_number = maithili_century_number | arabic_century_number
         century_text = pynutil.insert("era: \"") + century_number + pynutil.insert("\"") + insert_space
 
         # Updated logic to use suffix_union
