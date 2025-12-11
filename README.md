@@ -4,7 +4,7 @@
 Introduction
 ------------
 
-`nemo-text-processing` is a Python package for text normalization and inverse text normalization.
+`indic-text-normalization` is a Python package for text normalization.
 
 Getting help
 --------------
