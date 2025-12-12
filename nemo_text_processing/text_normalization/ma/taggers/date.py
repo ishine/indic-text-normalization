@@ -27,8 +27,8 @@ from nemo_text_processing.text_normalization.ma.utils import get_abs_path
 
 # Convert Arabic digits (0-9) to Malayalam digits (൦-൯)
 arabic_to_hindi_digit = pynini.string_map([
-    ("0", "०"), ("1", "१"), ("2", "२"), ("3", "३"), ("4", "४"),
-    ("5", "५"), ("6", "६"), ("7", "७"), ("8", "८"), ("9", "९")
+    ("0", "൦"), ("1", "൧"), ("2", "൨"), ("3", "൩"), ("4", "൪"),
+    ("5", "൫"), ("6", "൬"), ("7", "൭"), ("8", "൮"), ("9", "൯")
 ]).optimize()
 arabic_to_hindi_number = pynini.closure(arabic_to_hindi_digit).optimize()
 
@@ -53,8 +53,8 @@ prefix_union = pynini.union(*prefixes_list)
 class DateFst(GraphFst):
     """
     Finite state transducer for classifying date, e.g.
-        "०१-०४-२०२४" -> date { day: "एक" month: "अप्रैल" year: "दो हज़ार चौबीस" }
-        "०४-०१-२०२४" -> date { month: "अप्रैल" day: "एक" year: "दो हज़ार चौबीस" }
+        "൦൧-൦൪-൨൦൨൪" -> date { day: "ഒന്ന്" month: "अप्रैल" year: "രണ്ട് हज़ार चौबीस" }
+        "൦൪-൦൧-൨൦൨൪" -> date { month: "अप्रैल" day: "ഒന്ന്" year: "രണ്ട് हज़ार चौबीस" }
 
 
     Args:
@@ -67,9 +67,9 @@ class DateFst(GraphFst):
         super().__init__(name="date", kind="classify")
 
         # Support both Malayalam and Arabic digits for dates
-        # Year patterns: 4-digit years (e.g., 2024, २०२४)
-        # Pattern for thousands: X0XX (e.g., 2024 -> 2०24)
-        # Pattern for hundreds: X1-9XX (e.g., 1999 -> 1९99)
+        # Year patterns: 4-digit years (e.g., 2024, ൨൦൨൪)
+        # Pattern for thousands: X0XX (e.g., 2024 -> 2൦24)
+        # Pattern for hundreds: X1-9XX (e.g., 1999 -> 1൯99)
         
         # Year pattern definitions
         year_pattern_thousands = (NEMO_HI_DIGIT + NEMO_HI_ZERO + NEMO_HI_DIGIT + NEMO_HI_DIGIT)
@@ -84,7 +84,7 @@ class DateFst(GraphFst):
         )
         
         # Arabic digits for year patterns - convert to Malayalam first
-        # Convert 4-digit Arabic year (e.g., "2024") to Malayalam ("२०२४"), then match patterns
+        # Convert 4-digit Arabic year (e.g., "2024") to Malayalam ("൨൦൨൪"), then match patterns
         arabic_year_4digits = (NEMO_DIGIT + NEMO_DIGIT + NEMO_DIGIT + NEMO_DIGIT)
         # Convert Arabic to Malayalam
         arabic_to_hindi_year = arabic_year_4digits @ arabic_to_hindi_number
@@ -149,19 +149,19 @@ class DateFst(GraphFst):
         # Graph for era
         era_graph = pynutil.insert("era: \"") + year_suffix + pynutil.insert("\"") + insert_space
 
-        range_graph = pynini.cross("-", "से")
+        range_graph = pynini.cross("-", "മുതൽ")
 
         # Graph for year - support both Malayalam and Arabic digits
         # Malayalam digits path
         hindi_century_input = pynini.closure(NEMO_HI_DIGIT, 1)
-        hindi_century_number = pynini.compose(hindi_century_input, cardinal_graph) + pynini.accep("वीं")
+        hindi_century_number = pynini.compose(hindi_century_input, cardinal_graph) + pynini.accep("ാം")
         
         # Arabic digits path
         arabic_century_input = pynini.closure(NEMO_DIGIT, 1)
         arabic_century_number = pynini.compose(
             arabic_century_input,
             arabic_to_hindi_number @ cardinal_graph
-        ) + pynini.accep("वीं")
+        ) + pynini.accep("ാം")
         
         century_number = hindi_century_number | arabic_century_number
         century_text = pynutil.insert("era: \"") + century_number + pynutil.insert("\"") + insert_space

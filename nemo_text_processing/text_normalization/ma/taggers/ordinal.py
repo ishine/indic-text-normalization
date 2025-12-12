@@ -23,8 +23,8 @@ from nemo_text_processing.text_normalization.ma.utils import get_abs_path
 class OrdinalFst(GraphFst):
     """
     Finite state transducer for classifying Malayalam ordinals, e.g.
-        १०वां -> ordinal { integer: "दसवां" }
-        २१वीं -> ordinal { integer: "इक्कीसवीं" }
+        ൧൦ാം -> ordinal { integer: "പത്ത്ാം" }
+        ൨൧ാം -> ordinal { integer: "इक्ന്റെसാം" }
 
     Args:
         deterministic: if True will provide a single transduction option,
@@ -42,8 +42,8 @@ class OrdinalFst(GraphFst):
         exceptions = pynini.string_file(get_abs_path("data/ordinal/exceptions.tsv"))
 
         # Ordinals: cardinal number + ordinal suffix
-        # e.g., १० + वाँ -> दस + वाँ -> दसवाँ
-        # The cardinal.final_graph handles both Malayalam (०-९) and Arabic (0-9) digits
+        # e.g., ൧൦ + वाँ -> പത്ത് + वाँ -> പത്ത്वाँ
+        # The cardinal.final_graph handles both Malayalam (൦-൯) and Arabic (0-9) digits
         graph = cardinal.final_graph + suffixes_fst
         exceptions = pynutil.add_weight(exceptions, -0.1)
         graph = pynini.union(exceptions, graph)

@@ -27,15 +27,24 @@ from pynini.lib import byte, pynutil, utf8
 NEMO_CHAR = utf8.VALID_UTF8_CHAR
 NEMO_DIGIT = byte.DIGIT
 
-NEMO_HI_DIGIT = pynini.union("०", "१", "२", "३", "४", "५", "६", "७", "८", "९").optimize()
-NEMO_HI_NON_ZERO = pynini.union("१", "२", "३", "४", "५", "६", "७", "८", "९").optimize()
-NEMO_HI_ZERO = "०"
+NEMO_MA_DIGIT = pynini.union("൦", "൧", "൨", "൩", "൪", "൫", "൬", "൭", "൮", "൯").optimize()
+NEMO_HI_DIGIT = pynini.union("൦", "൧", "൨", "൩", "൪", "൫", "൬", "൭", "൮", "൯").optimize()
+NEMO_HI_NON_ZERO = pynini.union("൧", "൨", "൩", "൪", "൫", "൬", "൭", "൮", "൯").optimize()
+NEMO_HI_ZERO = "൦"
 
 ML_ONNARA = "ഒന്നര"  # 1.5
 ML_IRANDARA = "രണ്ടര"  # 2.5
 ML_KAAL_ADHIKAM = "കാൽ അധികം"  # quarter more (X.25)
 ML_ARA_ADHIKAM = "അര അധികം"  # half more (X.5)
 ML_KAAL_KURAVU = "കാൽ കുറവ്"  # quarter less (X - 0.25)
+
+# Malayalam fraction constants (equivalents of Hindi HI_DEDH, HI_DHAI, etc.)
+HI_DEDH = ML_ONNARA  # 1.5 (ഒന്നര)
+HI_DHAI = ML_IRANDARA  # 2.5 (രണ്ടര)
+HI_PAUNE = ML_KAAL_KURAVU  # quarter less (കാൽ കുറവ്)
+HI_SADHE = ML_ARA_ADHIKAM  # half more (അര അധികം)
+HI_SAVVA = ML_KAAL_ADHIKAM  # quarter more (കാൽ അധികം)
+
 
 NEMO_LOWER = pynini.union(*string.ascii_lowercase).optimize()
 NEMO_UPPER = pynini.union(*string.ascii_uppercase).optimize()
@@ -65,7 +74,7 @@ MIN_NEG_WEIGHT = -0.0001
 MIN_POS_WEIGHT = 0.0001
 INPUT_CASED = "cased"
 INPUT_LOWER_CASED = "lower_cased"
-MINUS = pynini.union(" ऋणात्मक ", " ऋणात्मक ").optimize()
+MINUS = pynini.union(" നെഗറ്റീവ് ", " മൈനസ് ").optimize()
 
 
 def capitalized_input_graph(

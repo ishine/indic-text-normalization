@@ -21,7 +21,7 @@ from nemo_text_processing.text_normalization.ma.graph_utils import MINUS, NEMO_N
 class CardinalFst(GraphFst):
     """
     Finite state transducer for verbalizing cardinal, e.g.
-        cardinal { negative: "true" integer: "तेइस" } -> ऋणात्मक तेइस
+        cardinal { negative: "true" integer: "ഇരുപത്തിമൂന്ന്" } -> നെഗറ്റീവ് ഇരുപത്തിമൂന്ന്
 
     Args:
         deterministic: if True will provide a single transduction option,

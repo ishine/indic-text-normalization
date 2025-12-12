@@ -22,8 +22,8 @@ from nemo_text_processing.text_normalization.ma.taggers.decimal import quantitie
 class DecimalFst(GraphFst):
     """
     Finite state transducer for classifying decimal, e.g.
-        decimal { negative: "true" integer_part: "बारह"  fractional_part: "पाँच शून्य शून्य छह" quantity: "अरब" } -> ऋणात्मक बारह दशमलव पाँच शून्य शून्य छह
-        decimal { integer_part: "बारह" quantity: "billion" } -> बारह अरब
+        decimal { negative: "true" integer_part: "പന്ത്രണ്ട്"  fractional_part: "അഞ്ച് പൂജ്യം പൂജ്യം ആറ്" quantity: "अरब" } -> നെഗറ്റീവ് പന്ത്രണ്ട് ദശാംശം അഞ്ച് പൂജ്യം പൂജ്യം ആറ്
+        decimal { integer_part: "പന്ത്രണ്ട്" quantity: "billion" } -> പന്ത്രണ്ട് अरब
 
     """
 
@@ -37,7 +37,7 @@ class DecimalFst(GraphFst):
             pynutil.delete("fractional_part: \"") + pynini.closure(NEMO_NOT_QUOTE, 1) + pynutil.delete("\"")
         )
 
-        self.fractional = pynutil.insert(" दशमलव ") + self.fractional_default
+        self.fractional = pynutil.insert(" ദശാംശം ") + self.fractional_default
 
         self.quantity = (
             delete_space + insert_space + pynutil.delete("quantity: \"") + quantities + pynutil.delete("\"")

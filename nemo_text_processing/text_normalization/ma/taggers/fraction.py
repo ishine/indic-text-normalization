@@ -25,8 +25,8 @@ from nemo_text_processing.text_normalization.ma.utils import get_abs_path
 
 # Convert Arabic digits (0-9) to Malayalam digits (൦-൯)
 arabic_to_hindi_digit = pynini.string_map([
-    ("0", "०"), ("1", "१"), ("2", "२"), ("3", "३"), ("4", "४"),
-    ("5", "५"), ("6", "६"), ("7", "७"), ("8", "८"), ("9", "९")
+    ("0", "൦"), ("1", "൧"), ("2", "൨"), ("3", "൩"), ("4", "൪"),
+    ("5", "൫"), ("6", "൬"), ("7", "൭"), ("8", "൮"), ("9", "൯")
 ]).optimize()
 arabic_to_hindi_number = pynini.closure(arabic_to_hindi_digit).optimize()
 
@@ -34,10 +34,10 @@ arabic_to_hindi_number = pynini.closure(arabic_to_hindi_digit).optimize()
 class FractionFst(GraphFst):
     """
     Finite state transducer for classifying fraction
-    "२३ ४/६" ->
-    fraction { integer: "तेईस" numerator: "चार" denominator: "छः"}
-    ४/६" ->
-    fraction { numerator: "चार" denominator: "छः"}
+    "൨൩ ൪/൬" ->
+    fraction { integer: "ഇരുപത്തിമൂന്ന്" numerator: "നാല്" denominator: "छः"}
+    ൪/൬" ->
+    fraction { numerator: "നാല്" denominator: "छः"}
 
 
     Args:

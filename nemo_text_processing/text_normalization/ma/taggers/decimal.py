@@ -27,8 +27,8 @@ quantities = pynini.string_file(get_abs_path("data/numbers/thousands.tsv"))
 
 # Convert Arabic digits (0-9) to Malayalam digits (൦-൯)
 arabic_to_hindi_digit = pynini.string_map([
-    ("0", "०"), ("1", "१"), ("2", "२"), ("3", "३"), ("4", "४"),
-    ("5", "५"), ("6", "६"), ("7", "७"), ("8", "८"), ("9", "९")
+    ("0", "൦"), ("1", "൧"), ("2", "൨"), ("3", "൩"), ("4", "൪"),
+    ("5", "൫"), ("6", "൬"), ("7", "൭"), ("8", "൮"), ("9", "൯")
 ]).optimize()
 arabic_to_hindi_number = pynini.closure(arabic_to_hindi_digit).optimize()
 
@@ -36,8 +36,8 @@ arabic_to_hindi_number = pynini.closure(arabic_to_hindi_digit).optimize()
 def get_quantity(decimal: 'pynini.FstLike', cardinal_up_to_hundred: 'pynini.FstLike') -> 'pynini.FstLike':
     """
     Returns FST that transforms either a cardinal or decimal followed by a quantity into a numeral,
-    e.g. १ लाख -> integer_part: "एक" quantity: "लाख"
-    e.g. १.५ लाख -> integer_part: "एक" fractional_part: "पाँच" quantity: "लाख"
+    e.g. ൧ लाख -> integer_part: "ഒന്ന്" quantity: "लाख"
+    e.g. ൧.൫ लाख -> integer_part: "ഒന്ന്" fractional_part: "അഞ്ച്" quantity: "लाख"
 
     Args:
         decimal: decimal FST
@@ -61,8 +61,8 @@ def get_quantity(decimal: 'pynini.FstLike', cardinal_up_to_hundred: 'pynini.FstL
 class DecimalFst(GraphFst):
     """
     Finite state transducer for classifying decimal, e.g.
-        -१२.५००६ अरब -> decimal { negative: "true" integer_part: "बारह"  fractional_part: "पाँच शून्य शून्य छह" quantity: "अरब" }
-        १ अरब -> decimal { integer_part: "एक" quantity: "अरब" }
+        -൧൨.൫൦൦൬ अरब -> decimal { negative: "true" integer_part: "പന്ത്രണ്ട്"  fractional_part: "അഞ്ച് പൂജ്യം പൂജ്യം ആറ്" quantity: "अरब" }
+        ൧ अरब -> decimal { integer_part: "ഒന്ന്" quantity: "अरब" }
 
     cardinal: CardinalFst
     """

@@ -16,15 +16,15 @@ import pynini
 from pynini.lib import pynutil
 
 major_minor_currencies = {
-    "रुपए": "पैसे",
-    "पाउंड": "पेंस",
-    "वॉन": "जिओन",
-    "डॉलर": "सेंट",
-    "लीरा": "कुरस",
-    "टका": "पैसे",
-    "येन": "सेन",
-    "नाइरा": "कोबो",
-    "यूरो": "सेंट",
+    "രൂപ": "പൈസ",
+    "പൗണ്ട്": "പെൻസ്",
+    "വോൺ": "ജിയോൺ",
+    "ഡോളർ": "മുതൽंट",
+    "ലിറ": "കുറസ്",
+    "टന്റെ": "പൈസ",
+    "യെൻ": "മുതൽन",
+    "നൈറ": "കോബോ",
+    "യൂറോ": "മുതൽंट",
 }
 from nemo_text_processing.text_normalization.ma.graph_utils import NEMO_NOT_QUOTE, NEMO_SPACE, GraphFst
 
@@ -32,9 +32,9 @@ from nemo_text_processing.text_normalization.ma.graph_utils import NEMO_NOT_QUOT
 class MoneyFst(GraphFst):
     """
     Finite state transducer for verbalizing money, e.g.
-        money { integer_part: "बारह" currency_maj: "रुपए" } -> बारह रुपए
-        money { integer_part: "बारह" currency_maj: "रुपए" fractional_part: "पचास" currency_min: "centiles" } -> बारह रुपए पचास पैसे
-        money { currency_maj: "रुपए" integer_part: "शून्य" fractional_part: "पचास" currency_min: "centiles" } -> पचास पैसे
+        money { integer_part: "പന്ത്രണ്ട്" currency_maj: "രൂപ" } -> പന്ത്രണ്ട് രൂപ
+        money { integer_part: "പന്ത്രണ്ട്" currency_maj: "രൂപ" fractional_part: "അമ്പത്" currency_min: "centiles" } -> പന്ത്രണ്ട് രൂപ അമ്പത് പൈസ
+        money { currency_maj: "രൂപ" integer_part: "പൂജ്യം" fractional_part: "അമ്പത്" currency_min: "centiles" } -> അമ്പത് പൈസ
 
     Args:
         cardinal: CardinalFst
@@ -79,7 +79,7 @@ class MoneyFst(GraphFst):
             major_minor_graphs.append(graph_major_minor_partial)
 
             graph_minor_partial = (
-                pynutil.delete('integer_part: "शून्य"')
+                pynutil.delete('integer_part: "പൂജ്യം"')
                 + pynutil.delete(NEMO_SPACE)
                 + pynutil.delete('currency_maj: "')
                 + pynutil.delete(major)

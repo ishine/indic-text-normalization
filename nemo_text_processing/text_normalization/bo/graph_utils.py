@@ -38,6 +38,14 @@ BO_SAVVA = "सवा"  # quarter more (1.25)
 BO_SADHE = "साढ़े"  # half more (X.5)
 BO_PAUNE = "पौने"  # quarter less (0.75)
 
+# Aliases for compatibility with measure.py imports
+HI_DEDH = BO_DEDH  # 1.5
+HI_DHAI = BO_DHAI  # 2.5
+HI_SAVVA = BO_SAVVA  # quarter more
+HI_SADHE = BO_SADHE  # half more
+HI_PAUNE = BO_PAUNE  # quarter less
+
+
 NEMO_LOWER = pynini.union(*string.ascii_lowercase).optimize()
 NEMO_UPPER = pynini.union(*string.ascii_uppercase).optimize()
 NEMO_ALPHA = pynini.union(NEMO_LOWER, NEMO_UPPER).optimize()

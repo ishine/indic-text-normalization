@@ -21,8 +21,8 @@ from nemo_text_processing.text_normalization.ma.graph_utils import NEMO_NOT_QUOT
 class DateFst(GraphFst):
     """
     Finite state transducer for verbalizing date, e.g.
-        date { day: "एक" month: "अप्रैल" year: "दो हज़ार चौबीस" } -> "एक अप्रैल दो हज़ार चौबीस"
-        date { month: "अप्रैल" day: "एक" year: "दो हज़ार चौबीस" } -> "अप्रैल एक दो हज़ार चौबीस"
+        date { day: "ഒന്ന്" month: "अप्रैल" year: "രണ്ട് हज़ार चौबीस" } -> "ഒന്ന് अप्रैल രണ്ട് हज़ार चौबीस"
+        date { month: "अप्रैल" day: "ഒന്ന്" year: "രണ്ട് हज़ार चौबीस" } -> "अप्रैल ഒന്ന് രണ്ട് हज़ार चौबीस"
 
 
     Args:

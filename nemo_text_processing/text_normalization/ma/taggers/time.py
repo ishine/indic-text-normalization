@@ -30,10 +30,10 @@ from nemo_text_processing.text_normalization.ma.graph_utils import (
 from nemo_text_processing.text_normalization.ma.utils import get_abs_path
 
 # Time patterns specific to time tagger
-HI_DOUBLE_ZERO = "००"
-HI_TIME_FIFTEEN = ":१५"  # :15
-HI_TIME_THIRTY = ":३०"  # :30
-HI_TIME_FORTYFIVE = ":४५"  # :45
+HI_DOUBLE_ZERO = "൦൦"
+HI_TIME_FIFTEEN = ":൧൫"  # :15
+HI_TIME_THIRTY = ":൩൦"  # :30
+HI_TIME_FORTYFIVE = ":൪൫"  # :45
 
 # Arabic time patterns
 AR_TIME_FIFTEEN = ":15"
@@ -42,8 +42,8 @@ AR_TIME_FORTYFIVE = ":45"
 
 # Convert Arabic digits (0-9) to Malayalam digits (൦-൯)
 arabic_to_hindi_digit = pynini.string_map([
-    ("0", "०"), ("1", "१"), ("2", "२"), ("3", "३"), ("4", "४"),
-    ("5", "५"), ("6", "६"), ("7", "७"), ("8", "८"), ("9", "९")
+    ("0", "൦"), ("1", "൧"), ("2", "൨"), ("3", "൩"), ("4", "൪"),
+    ("5", "൫"), ("6", "൬"), ("7", "൭"), ("8", "൮"), ("9", "൯")
 ]).optimize()
 arabic_to_hindi_number = pynini.closure(arabic_to_hindi_digit).optimize()
 
@@ -55,9 +55,9 @@ seconds_graph = pynini.string_file(get_abs_path("data/time/seconds.tsv"))
 class TimeFst(GraphFst):
     """
     Finite state transducer for classifying time, e.g.
-        १२:३०:३०  -> time { hours: "बारह" minutes: "तीस" seconds: "तीस" }
-        १:४०  -> time { hours: "एक" minutes: "चालीस" }
-        १:००  -> time { hours: "एक" }
+        ൧൨:൩൦:൩൦  -> time { hours: "പന്ത്രണ്ട്" minutes: "तीस" seconds: "तीस" }
+        ൧:൪൦  -> time { hours: "ഒന്ന്" minutes: "നാല്പത്" }
+        ൧:൦൦  -> time { hours: "ഒന്ന്" }
 
     Args:
         time: GraphFst
@@ -88,8 +88,8 @@ class TimeFst(GraphFst):
             # Match two Malayalam digits
             NEMO_HI_DIGIT + NEMO_HI_DIGIT
         ) | (
-            # Match optional leading "०" (0 or 1 times) + Malayalam digit
-            pynini.closure(pynutil.delete("०"), 0, 1) + NEMO_HI_DIGIT
+            # Match optional leading "൦" (0 or 1 times) + Malayalam digit
+            pynini.closure(pynutil.delete("൦"), 0, 1) + NEMO_HI_DIGIT
         )
 
         # Support both Malayalam and Arabic digits for hours and minutes
@@ -148,7 +148,7 @@ class TimeFst(GraphFst):
 
         # Support both Malayalam and Arabic time patterns for dedh/dhai
         dedh_dhai_graph = (
-            pynini.string_map([("१" + HI_TIME_THIRTY, HI_DEDH), ("२" + HI_TIME_THIRTY, HI_DHAI)])
+            pynini.string_map([("൧" + HI_TIME_THIRTY, HI_DEDH), ("൨" + HI_TIME_THIRTY, HI_DHAI)])
             | pynini.string_map([("1" + AR_TIME_THIRTY, HI_DEDH), ("2" + AR_TIME_THIRTY, HI_DHAI)])
         )
 

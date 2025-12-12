@@ -26,8 +26,8 @@ from nemo_text_processing.text_normalization.ma.utils import get_abs_path
 
 # Convert Arabic digits (0-9) to Malayalam digits (൦-൯)
 arabic_to_hindi_digit = pynini.string_map([
-    ("0", "०"), ("1", "१"), ("2", "२"), ("3", "३"), ("4", "४"),
-    ("5", "५"), ("6", "६"), ("7", "७"), ("8", "८"), ("9", "९")
+    ("0", "൦"), ("1", "൧"), ("2", "൨"), ("3", "൩"), ("4", "൪"),
+    ("5", "൫"), ("6", "൬"), ("7", "൭"), ("8", "൮"), ("9", "൯")
 ]).optimize()
 arabic_to_hindi_number = pynini.closure(arabic_to_hindi_digit).optimize()
 
@@ -38,9 +38,9 @@ math_operations = pynini.string_file(get_abs_path("data/math_operations.tsv"))
 class MathFst(GraphFst):
     """
     Finite state transducer for classifying math expressions, e.g.
-        "1=2" -> math { left: "एक" operator: "बराबर" right: "दो" }
-        "1+2" -> math { left: "एक" operator: "प्लस" right: "दो" }
-        "१२=३४" -> math { left: "बारह" operator: "बराबर" right: "चौंतीस" }
+        "1=2" -> math { left: "ഒന്ന്" operator: "തുല്യം" right: "രണ്ട്" }
+        "1+2" -> math { left: "ഒന്ന്" operator: "പ്ലസ്" right: "രണ്ട്" }
+        "൧൨=൩൪" -> math { left: "പന്ത്രണ്ട്" operator: "തുല്യം" right: "चौंतीस" }
 
     Args:
         cardinal: cardinal GraphFst

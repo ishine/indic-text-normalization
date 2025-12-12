@@ -29,11 +29,11 @@ from nemo_text_processing.text_normalization.ma.utils import get_abs_path
 class FractionFst(GraphFst):
     """
     Finite state transducer for verbalizing fraction
-        e.g. fraction { integer: "तेईस" numerator: "चार" denominator: "छः" }-> तेईस चार बटा छः
-        e.g. fraction { numerator: "चार" denominator: "छः" } -> चार बटा छः
-        e.g. fraction { numerator: "एक" denominator: "दो" } -> आधा
-        e.g. fraction { numerator: "एक" denominator: "चार" } -> चौथाई
-        e.g. fraction { numerator: "तीन" denominator: "चार" } -> तीन चौथाई
+        e.g. fraction { integer: "ഇരുപത്തിമൂന്ന്" numerator: "നാല്" denominator: "छः" }-> ഇരുപത്തിമൂന്ന് നാല് ഭാഗിച്ച് छः
+        e.g. fraction { numerator: "നാല്" denominator: "छः" } -> നാല് ഭാഗിച്ച് छः
+        e.g. fraction { numerator: "ഒന്ന്" denominator: "രണ്ട്" } -> പകുതി
+        e.g. fraction { numerator: "ഒന്ന്" denominator: "നാല്" } -> കാൽ
+        e.g. fraction { numerator: "മൂന്ന്" denominator: "നാല്" } -> മൂന്ന് കാൽ
 
 
     Args:
@@ -50,30 +50,30 @@ class FractionFst(GraphFst):
         numerator = pynutil.delete("numerator: \"") + pynini.closure(NEMO_NOT_QUOTE) + pynutil.delete("\" ")
         denominator = pynutil.delete("denominator: \"") + pynini.closure(NEMO_NOT_QUOTE) + pynutil.delete("\"")
         
-        insert_aur = pynutil.insert(" और ")
-        insert_bata = pynutil.insert(" बटा ")
+        insert_aur = pynutil.insert(" ഉം ")
+        insert_bata = pynutil.insert(" ഭാഗിച്ച് ")
         
         # Special cases (like English)
-        # 1/2 -> "आधा" (half): numerator "एक" + denominator "दो" -> "आधा"
+        # 1/2 -> "പകുതി" (half): numerator "ഒന്ന്" + denominator "രണ്ട്" -> "പകുതി"
         numerator_one_half = (
-            pynutil.delete("numerator: \"एक\"") + pynutil.delete("\" ")
-            + pynini.cross("denominator: \"दो\"", "आधा")
+            pynutil.delete("numerator: \"ഒന്ന്\"") + pynutil.delete("\" ")
+            + pynini.cross("denominator: \"രണ്ട്\"", "പകുതി")
         )
         
-        # 1/4 -> "चौथाई" (quarter): numerator "एक" + denominator "चार" -> "चौथाई"
+        # 1/4 -> "കാൽ" (quarter): numerator "ഒന്ന്" + denominator "നാല്" -> "കാൽ"
         numerator_one_quarter = (
-            pynutil.delete("numerator: \"एक\"") + pynutil.delete("\" ")
-            + pynini.cross("denominator: \"चार\"", "चौथाई")
+            pynutil.delete("numerator: \"ഒന്ന്\"") + pynutil.delete("\" ")
+            + pynini.cross("denominator: \"നാല്\"", "കാൽ")
         )
         
-        # 3/4 -> "तीन चौथाई" (three quarters): numerator "तीन" + denominator "चार" -> "तीन चौथाई"
+        # 3/4 -> "മൂന്ന് കാൽ" (three quarters): numerator "മൂന്ന്" + denominator "നാല്" -> "മൂന്ന് കാൽ"
         three_quarters = (
-            pynutil.delete("numerator: \"तीन\"") + pynutil.delete("\" ")
-            + pynutil.insert("तीन ")
-            + pynini.cross("denominator: \"चार\"", "चौथाई")
+            pynutil.delete("numerator: \"മൂന്ന്\"") + pynutil.delete("\" ")
+            + pynutil.insert("മൂന്ന് ")
+            + pynini.cross("denominator: \"നാല്\"", "കാൽ")
         )
         
-        # Default: numerator बटा denominator (for all other fractions)
+        # Default: numerator ഭാഗിച്ച് denominator (for all other fractions)
         fraction_default = numerator + insert_bata + denominator
         
         # Use priority union like English to handle special cases first, then default
@@ -92,7 +92,7 @@ class FractionFst(GraphFst):
             pynutil.delete("morphosyntactic_features: \"") + pynini.closure(NEMO_NOT_QUOTE, 1) + pynutil.delete("\"")
         )
         
-        # Add integer part with "और" (and) for mixed numbers
+        # Add integer part with "ഉം" (and) for mixed numbers
         self.graph = (
             optional_sign
             + pynini.closure(integer + insert_space + insert_aur, 0, 1)

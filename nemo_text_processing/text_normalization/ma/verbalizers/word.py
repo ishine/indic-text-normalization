@@ -20,7 +20,7 @@ from nemo_text_processing.text_normalization.ma.graph_utils import NEMO_CHAR, NE
 class WordFst(GraphFst):
     """
     Finite state transducer for verbalizing Malayalam words.
-        e.g. tokens { name: "सोना" } -> सोना
+        e.g. tokens { name: "സ്വർണം" } -> സ്വർണം
 
     Args:
         deterministic: if True will provide a single transduction option,
@@ -30,7 +30,7 @@ class WordFst(GraphFst):
     def __init__(self, deterministic: bool = True):
         super().__init__(name="word", kind="verbalize", deterministic=deterministic)
         chars = pynini.closure(NEMO_CHAR - " ", 1)
-        punct = pynini.union("!", "?", ".", ",", "-", ":", ";", "।")  # Add other punctuation marks as needed
+        punct = pynini.union("!", "?", ".", ",", "-", ":", ";", ".")  # Add other punctuation marks as needed
         char = pynutil.delete("name:") + delete_space + pynutil.delete("\"") + chars + pynutil.delete("\"")
 
         # Ensure no spaces around punctuation

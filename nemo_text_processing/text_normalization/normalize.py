@@ -166,6 +166,27 @@ class Normalizer:
         elif lang == 'gu':  # Gujarati
             from nemo_text_processing.text_normalization.gu.taggers.tokenize_and_classify import ClassifyFst
             from nemo_text_processing.text_normalization.gu.verbalizers.verbalize_final import VerbalizeFinalFst
+        elif lang == 'ase':  # Assamese
+            from nemo_text_processing.text_normalization.ase.taggers.tokenize_and_classify import ClassifyFst
+            from nemo_text_processing.text_normalization.ase.verbalizers.verbalize_final import VerbalizeFinalFst
+        elif lang == 'bo':  # Bodo
+            from nemo_text_processing.text_normalization.bo.taggers.tokenize_and_classify import ClassifyFst
+            from nemo_text_processing.text_normalization.bo.verbalizers.verbalize_final import VerbalizeFinalFst
+        elif lang == 'do':  # Dogri
+            from nemo_text_processing.text_normalization.do.taggers.tokenize_and_classify import ClassifyFst
+            from nemo_text_processing.text_normalization.do.verbalizers.verbalize_final import VerbalizeFinalFst
+        elif lang == 'ma':  # Malayalam
+            from nemo_text_processing.text_normalization.ma.taggers.tokenize_and_classify import ClassifyFst
+            from nemo_text_processing.text_normalization.ma.verbalizers.verbalize_final import VerbalizeFinalFst
+        elif lang == 'Pu':  # Punjabi
+            from nemo_text_processing.text_normalization.Pu.taggers.tokenize_and_classify import ClassifyFst
+            from nemo_text_processing.text_normalization.Pu.verbalizers.verbalize_final import VerbalizeFinalFst
+        elif lang == 'ne':  # Nepali
+            from nemo_text_processing.text_normalization.ne.taggers.tokenize_and_classify import ClassifyFst
+            from nemo_text_processing.text_normalization.ne.verbalizers.verbalize_final import VerbalizeFinalFst
+        elif lang == 'sa':  # Sanskrit
+            from nemo_text_processing.text_normalization.sa.taggers.tokenize_and_classify import ClassifyFst
+            from nemo_text_processing.text_normalization.sa.verbalizers.verbalize_final import VerbalizeFinalFst
         else:
             raise NotImplementedError(f"Language {lang} has not been supported yet.")
 
@@ -708,7 +729,7 @@ def parse_args():
     parser.add_argument(
         "--language",
         help="language",
-        choices=["en", "hi", "kn", "bn", "mr", "bho", "cg", "mag", "mai", "ta", "te", "gu"],
+        choices=["en", "hi", "kn", "bn", "mr", "bho", "cg", "mag", "mai", "ta", "te", "gu", "ase", "bo", "do", "ma", "Pu", "ne", "sa"],
         default="en",
         type=str,
     )

@@ -21,9 +21,9 @@ from nemo_text_processing.text_normalization.ma.graph_utils import NEMO_NOT_QUOT
 class TimeFst(GraphFst):
     """
     Finite state transducer for verbalizing time, e.g.
-        time { hours: "बारह"  minutes: "दस"  seconds: "दस" } -> बारह बजकर दस मिनट दस सेकंड
-        time { hours: "सात" minutes: "चालीस"" } -> सात बजकर चालीस मिनट
-        time { hours: "दस" } -> दस बजे
+        time { hours: "പന്ത്രണ്ട്"  minutes: "പത്ത്"  seconds: "പത്ത്" } -> പന്ത്രണ്ട് മണിക്ക് പത്ത് മിനിറ്റ് പത്ത് സെക്കൻഡ്
+        time { hours: "ഏഴ്" minutes: "നാല്പത്"" } -> ഏഴ് മണിക്ക് നാല്പത് മിനിറ്റ്
+        time { hours: "പത്ത്" } -> പത്ത് മണി
 
     Args:
         deterministic: if True will provide a single transduction option,
@@ -43,10 +43,10 @@ class TimeFst(GraphFst):
             pynutil.delete("seconds: \"") + pynini.closure(NEMO_NOT_QUOTE, 1) + pynutil.delete("\"") + insert_space
         )
 
-        insert_minute = pynutil.insert("मिनट")
-        insert_second = pynutil.insert("सेकंड")
-        insert_bajkar = pynutil.insert("बजकर")
-        insert_baje = pynutil.insert("बजे")
+        insert_minute = pynutil.insert("മിനിറ്റ്")
+        insert_second = pynutil.insert("സെക്കൻഡ്")
+        insert_bajkar = pynutil.insert("മണിക്ക്")
+        insert_baje = pynutil.insert("മണി")
 
         # hour minute second
         graph_hms = (

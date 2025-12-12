@@ -39,16 +39,16 @@ from nemo_text_processing.text_normalization.ma.utils import get_abs_path
 
 # Convert Arabic digits (0-9) to Malayalam digits (൦-൯)
 arabic_to_hindi_digit = pynini.string_map([
-    ("0", "०"), ("1", "१"), ("2", "२"), ("3", "३"), ("4", "४"),
-    ("5", "५"), ("6", "६"), ("7", "७"), ("8", "८"), ("9", "९")
+    ("0", "൦"), ("1", "൧"), ("2", "൨"), ("3", "൩"), ("4", "൪"),
+    ("5", "൫"), ("6", "൬"), ("7", "൭"), ("8", "൮"), ("9", "൯")
 ]).optimize()
 arabic_to_hindi_number = pynini.closure(arabic_to_hindi_digit).optimize()
 
-HI_POINT_FIVE = ".५"  # .5
-HI_ONE_POINT_FIVE = "१.५"  # 1.5
-HI_TWO_POINT_FIVE = "२.५"  # 2.5
-HI_DECIMAL_25 = ".२५"  # .25
-HI_DECIMAL_75 = ".७५"  # .75
+HI_POINT_FIVE = ".൫"  # .5
+HI_ONE_POINT_FIVE = "൧.൫"  # 1.5
+HI_TWO_POINT_FIVE = "൨.൫"  # 2.5
+HI_DECIMAL_25 = ".൨൫"  # .25
+HI_DECIMAL_75 = ".൭൫"  # .75
 
 digit = pynini.string_file(get_abs_path("data/numbers/digit.tsv"))
 teens_ties = pynini.string_file(get_abs_path("data/numbers/teens_and_ties.tsv"))
@@ -58,8 +58,8 @@ teens_and_ties = pynutil.add_weight(teens_ties, -0.1)
 class MeasureFst(GraphFst):
     """
     Finite state transducer for classifying measure, suppletive aware, e.g.
-        -१२kg -> measure { negative: "true" cardinal { integer: "बारह" } units: "किलोग्राम" }
-        -१२.२kg -> measure { decimal { negative: "true"  integer_part: "बारह"  fractional_part: "दो"} units: "किलोग्राम" }
+        -൧൨kg -> measure { negative: "true" cardinal { integer: "പന്ത്രണ്ട്" } units: "കിലോഗ്രാം" }
+        -൧൨.൨kg -> measure { decimal { negative: "true"  integer_part: "പന്ത്രണ്ട്"  fractional_part: "രണ്ട്"} units: "കിലോഗ്രാം" }
 
     Args:
         cardinal: CardinalFst
@@ -267,9 +267,9 @@ class MeasureFst(GraphFst):
         )
 
         # Cardinal with plural units (for numbers != 1)
-        # Exclude "1" and "१" from matching (they will be handled by singular pattern)
+        # Exclude "1" and "൧" from matching (they will be handled by singular pattern)
         # Note: cardinal_graph already handles both Malayalam and Arabic digits
-        exclude_one = (NEMO_SIGMA - "1" - "१")
+        exclude_one = (NEMO_SIGMA - "1" - "൧")
         subgraph_cardinal = (
             pynutil.insert("cardinal { ")
             + optional_graph_negative
@@ -282,8 +282,8 @@ class MeasureFst(GraphFst):
         )
         
         # Cardinal with singular unit (for number == 1)
-        # Handle both ASCII "1" and Malayalam "१"
-        one_pattern = pynini.cross("1", "एक") | pynini.cross("१", "एक")
+        # Handle both ASCII "1" and Malayalam "൧"
+        one_pattern = pynini.cross("1", "ഒന്ന്") | pynini.cross("൧", "ഒന്ന്")
         subgraph_cardinal |= (
             pynutil.insert("cardinal { ")
             + optional_graph_negative
@@ -394,7 +394,7 @@ class MeasureFst(GraphFst):
                     + (delimiter | NEMO_ALPHA)
                     + cardinal_graph
                     + delimiter
-                    + pynini.cross("=", "बराबर")
+                    + pynini.cross("=", "തുല്യം")
                     + delimiter
                     + (cardinal_graph | NEMO_ALPHA)
                 )
@@ -402,7 +402,7 @@ class MeasureFst(GraphFst):
                 math_expr |= (
                     (cardinal_graph | NEMO_ALPHA)
                     + delimiter
-                    + pynini.cross("=", "बराबर")
+                    + pynini.cross("=", "തുല്യം")
                     + delimiter
                     + (cardinal_graph | NEMO_ALPHA)
                     + delimiter
@@ -455,7 +455,7 @@ class MeasureFst(GraphFst):
         Args:
             cardinal: cardinal GraphFst
         """
-        range_graph = cardinal + pynini.cross(pynini.union("-", " - "), " से ") + cardinal
+        range_graph = cardinal + pynini.cross(pynini.union("-", " - "), " മുതൽ ") + cardinal
 
         for x in [" x ", "x"]:
             range_graph |= cardinal + pynini.cross(x, " बाई ") + cardinal

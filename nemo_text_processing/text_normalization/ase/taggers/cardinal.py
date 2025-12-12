@@ -338,12 +338,78 @@ class CardinalFst(GraphFst):
             | graph_leading_zero
         ).optimize()
 
-        # Arabic digits: convert to Hindi, then apply the same graph
-        arabic_digit_input = pynini.closure(NEMO_DIGIT, 1)
-        arabic_final_graph = pynini.compose(arabic_digit_input, arabic_to_hindi_number @ hindi_final_graph).optimize()
+        # Hindi digits: Use the full cardinal graph
+        # BUT limit to < 7 consecutive digits (telephone handles 7+)
+        hindi_digit_input_short = pynini.closure(NEMO_HI_DIGIT, 1, 6)  # 1-6 digits only
+        hindi_cardinal_graph = pynini.compose(hindi_digit_input_short, hindi_final_graph).optimize()
 
-        # Combine both Hindi and Arabic digit paths
-        final_graph = hindi_final_graph | arabic_final_graph
+        # Arabic digits: Convert to Hindi and verbalize using the full graph
+        # BUT limit to < 7 consecutive digits (telephone handles 7+)
+        arabic_digit_input_short = pynini.closure(NEMO_DIGIT, 1, 6)  # 1-6 digits only
+        arabic_final_graph = pynini.compose(arabic_digit_input_short, arabic_to_hindi_number @ hindi_final_graph).optimize()
+
+        # Handle comma-separated numbers (e.g., 1,234,567)
+        # These can be any length because commas indicate it's NOT a phone number
+        # Delete commas and then verbalize as a complete number
+        any_digit = pynini.union(NEMO_DIGIT, NEMO_HI_DIGIT)
+        delete_commas = (
+            any_digit
+            + pynini.closure(pynini.closure(pynutil.delete(","), 0, 1) + any_digit)
+        ).optimize()
+        
+        # Input pattern: must contain at least one comma
+        # Pattern: digits + comma + (digits/comma)*
+        # This ensures we only match actual comma-separated numbers
+        digit_or_comma = pynini.union(NEMO_DIGIT, pynini.accep(","))
+        arabic_input_with_comma = (
+            pynini.closure(NEMO_DIGIT, 1)  # At least one digit
+            + pynini.accep(",")  # At least one comma
+            + pynini.closure(digit_or_comma)  # More digits/commas
+        ).optimize()
+        
+        hindi_digit_or_comma = pynini.union(NEMO_HI_DIGIT, pynini.accep(","))
+        hindi_input_with_comma = (
+            pynini.closure(NEMO_HI_DIGIT, 1)  # At least one digit
+            + pynini.accep(",")  # At least one comma
+            + pynini.closure(hindi_digit_or_comma)  # More digits/commas
+        ).optimize()
+        
+        # Compose: numbers with commas -> delete commas -> cardinal conversion
+        # For Arabic digits with commas (any length allowed)
+        arabic_with_commas = pynini.compose(
+            arabic_input_with_comma,
+            delete_commas @ (arabic_to_hindi_number @ hindi_final_graph)
+        ).optimize()
+        
+        # For Hindi digits with commas (any length allowed)
+        hindi_with_commas = pynini.compose(
+            hindi_input_with_comma,
+            delete_commas @ hindi_final_graph
+        ).optimize()
+
+        # Combine all paths with priority to comma-separated versions
+        # Comma-separated numbers have highest priority
+        # Then regular numbers (< 7 digits)
+        final_graph = (
+            pynutil.add_weight(arabic_with_commas, -0.1)
+            | pynutil.add_weight(hindi_with_commas, -0.1)
+            | hindi_cardinal_graph
+            | arabic_final_graph
+        )
+
+        # CRITICAL: Exclude 7+ consecutive digit sequences (Hindi or Arabic)
+        # These should be handled by telephone tagger (digit-by-digit)
+        # Pattern: 7 or more consecutive digits (no commas, no other characters)
+        seven_plus_arabic = pynini.closure(NEMO_DIGIT, 7)
+        seven_plus_hindi = pynini.closure(NEMO_HI_DIGIT, 7)
+        seven_plus_digits = seven_plus_arabic | seven_plus_hindi
+        
+        # Exclude these patterns from final_graph
+        # This ensures telephone tagger (weight 0.9) can match them
+        final_graph = pynini.difference(
+            pynini.closure(pynini.union(NEMO_DIGIT, NEMO_HI_DIGIT, pynini.accep(",")), 1),
+            seven_plus_digits
+        ) @ final_graph
 
         optional_minus_graph = pynini.closure(pynutil.insert("negative: ") + pynini.cross("-", "\"true\" "), 0, 1)
 

@@ -22,7 +22,7 @@ from nemo_text_processing.text_normalization.ma.utils import get_abs_path
 class RomanFst(GraphFst):
     """
     Finite state transducer for verbalizing roman numerals
-        e.g. tokens { roman { integer: "एक" } } -> एक
+        e.g. tokens { roman { integer: "ഒന്ന്" } } -> ഒന്ന്
 
     Args:
         deterministic: if True will provide a single transduction option,

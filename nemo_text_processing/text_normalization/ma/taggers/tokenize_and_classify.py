@@ -179,7 +179,7 @@ class ClassifyFst(GraphFst):
             logging.debug(f"range: {time.time() - start_time:.2f}s -- {range_graph.num_states()} nodes")
 
             # A quick fix to address money ranges: $150-$200
-            dash = (pynutil.insert('name: "') + pynini.cross("-", "से") + pynutil.insert('"')).optimize()
+            dash = (pynutil.insert('name: "') + pynini.cross("-", "മുതൽ") + pynutil.insert('"')).optimize()
             graph_range_money = pynini.closure(
                 money_graph
                 + pynutil.insert(" }")

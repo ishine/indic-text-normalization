@@ -47,7 +47,7 @@ class SerialFst(GraphFst):
         Finite state transducer for classifying serial (handles only cases without delimiters,
         values with delimiters are handled by default).
             The serial is a combination of digits, letters and dashes, e.g.:
-            c325b -> tokens { cardinal { integer: "c तीन दो पाँच b" } }
+            c325b -> tokens { cardinal { integer: "c മൂന്ന് രണ്ട് അഞ്ച് b" } }
         """
         if deterministic:
             # For Malayalam, use final_graph for numbers

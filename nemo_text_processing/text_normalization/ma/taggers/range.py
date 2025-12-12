@@ -47,7 +47,7 @@ class RangeFst(GraphFst):
         approx = pynini.cross("~", "लगभग")
 
         # TIME
-        time_graph = time + delete_space + pynini.cross("-", " से ") + delete_space + time
+        time_graph = time + delete_space + pynini.cross("-", " മുതൽ ") + delete_space + time
         self.graph = time_graph | (approx + time)
 
         # Use final_graph for cardinal numbers
@@ -58,7 +58,7 @@ class RangeFst(GraphFst):
         year_to_year_graph = (
             date_year_four_digit
             + delete_space
-            + pynini.cross("-", " से ")
+            + pynini.cross("-", " മുതൽ ")
             + delete_space
             + (date_year_four_digit | date_year_two_digit | (NEMO_DIGIT**2 @ cardinal_graph))
         )
@@ -68,40 +68,40 @@ class RangeFst(GraphFst):
         self.graph |= mid_year_graph
 
         # ADDITION
-        range_graph = cardinal_graph + pynini.closure(pynini.cross("+", " प्लस ") + cardinal_graph, 1)
-        range_graph |= cardinal_graph + pynini.closure(pynini.cross(" + ", " प्लस ") + cardinal_graph, 1)
+        range_graph = cardinal_graph + pynini.closure(pynini.cross("+", " പ്ലസ് ") + cardinal_graph, 1)
+        range_graph |= cardinal_graph + pynini.closure(pynini.cross(" + ", " പ്ലസ് ") + cardinal_graph, 1)
         range_graph |= approx + cardinal_graph
         range_graph |= cardinal_graph + (pynini.cross("...", " ... ") | pynini.accep(" ... ")) + cardinal_graph
 
         if not deterministic or lm:
             # cardinal ----
             cardinal_to_cardinal_graph = (
-                cardinal_graph + delete_space + pynini.cross("-", pynini.union(" से ", " माइनस ")) + delete_space + cardinal_graph
+                cardinal_graph + delete_space + pynini.cross("-", pynini.union(" മുതൽ ", " മൈനസ് ")) + delete_space + cardinal_graph
             )
 
             range_graph |= cardinal_to_cardinal_graph | (
-                cardinal_graph + delete_space + pynini.cross(":", " से ") + delete_space + cardinal_graph
+                cardinal_graph + delete_space + pynini.cross(":", " മുതൽ ") + delete_space + cardinal_graph
             )
 
             # MULTIPLY
             for x in [" x ", "x"]:
-                range_graph |= cardinal_graph + pynini.cross(x, pynini.union(" बाई ", " गुणा ")) + cardinal_graph
+                range_graph |= cardinal_graph + pynini.cross(x, pynini.union(" बाई ", " ഗുണിച്ച് ")) + cardinal_graph
 
             # 40x -> "40 times" ("40 x" cases is covered in serial)
             for x in [" x", "x"]:
-                range_graph |= cardinal_graph + pynini.cross(x, " गुणा")
+                range_graph |= cardinal_graph + pynini.cross(x, " ഗുണിച്ച്")
 
                 # 5x to 7x-> five to seven x/times
                 range_graph |= (
                     cardinal_graph
                     + pynutil.delete(x)
-                    + pynini.union(" से ", "-", " - ")
+                    + pynini.union(" മുതൽ ", "-", " - ")
                     + cardinal_graph
-                    + pynini.cross(x, pynini.union(" x", " गुणा"))
+                    + pynini.cross(x, pynini.union(" x", " ഗുണിച്ച്"))
                 )
 
             for x in ["*", " * "]:
-                range_graph |= cardinal_graph + pynini.closure(pynini.cross(x, " गुणा ") + cardinal_graph, 1)
+                range_graph |= cardinal_graph + pynini.closure(pynini.cross(x, " ഗുണിച്ച് ") + cardinal_graph, 1)
 
             # supports "No. 12" -> "Number 12"
             range_graph |= (
@@ -117,7 +117,7 @@ class RangeFst(GraphFst):
             range_graph |= (
                 cardinal_graph
                 + pynini.closure(pynini.cross("%", " प्रतिशत") | pynutil.delete("%"), 0, 1)
-                + pynini.union(" से ", "-", " - ")
+                + pynini.union(" മുതൽ ", "-", " - ")
                 + cardinal_graph
                 + pynini.cross("%", " प्रतिशत")
             )

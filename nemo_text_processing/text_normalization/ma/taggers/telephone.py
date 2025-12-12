@@ -19,7 +19,7 @@ from pynini.lib import pynutil
 from nemo_text_processing.text_normalization.ma.graph_utils import (
     NEMO_CHAR,
     NEMO_DIGIT,
-    NEMO_HI_DIGIT,
+    NEMO_MA_DIGIT,
     NEMO_SPACE,
     NEMO_WHITE_SPACE,
     GraphFst,
@@ -28,13 +28,13 @@ from nemo_text_processing.text_normalization.ma.graph_utils import (
 )
 from nemo_text_processing.text_normalization.ma.utils import get_abs_path
 
-HI_ZERO_DIGIT = pynini.union("0", "०")
-HI_MOBILE_START_DIGITS = pynini.union("६", "७", "८", "९", "6", "7", "8", "9").optimize()
-HI_LANDLINE_START_DIGITS = pynini.union("२", "३", "४", "६", "2", "3", "4", "6").optimize()
+HI_ZERO_DIGIT = pynini.union("0", "൦")
+HI_MOBILE_START_DIGITS = pynini.union("൬", "൭", "൮", "൯", "6", "7", "8", "9").optimize()
+HI_LANDLINE_START_DIGITS = pynini.union("൨", "൩", "൪", "൬", "2", "3", "4", "6").optimize()
 
 delete_zero = pynutil.delete(HI_ZERO_DIGIT)
 delete_zero_optional = pynini.closure(delete_zero, 0, 1)
-insert_shunya = pynutil.insert('शून्य') + insert_space
+insert_shunya = pynutil.insert('പൂജ്യം') + insert_space
 
 # Load the number mappings from the TSV file
 digit_to_word = pynini.string_file(get_abs_path("data/telephone/number.tsv"))
@@ -47,8 +47,8 @@ pincode_context = pynini.string_file(get_abs_path("data/telephone/pincode_contex
 
 # Convert Arabic digits (0-9) to Malayalam digits (൦-൯) for pattern matching
 arabic_to_hindi_digit = pynini.string_map([
-    ("0", "०"), ("1", "१"), ("2", "२"), ("3", "३"), ("4", "४"),
-    ("5", "५"), ("6", "६"), ("7", "७"), ("8", "८"), ("9", "९")
+    ("0", "൦"), ("1", "൧"), ("2", "൨"), ("3", "൩"), ("4", "൪"),
+    ("5", "൫"), ("6", "൬"), ("7", "൭"), ("8", "൮"), ("9", "൯")
 ]).optimize()
 
 # Reusable optimized graph for any digit token
@@ -56,7 +56,7 @@ arabic_to_hindi_digit = pynini.string_map([
 num_token = pynini.union(digit_to_word, digits, zero).optimize()
 
 # Pattern to match any digit (Arabic or Malayalam) for telephone numbers
-any_digit = pynini.union(NEMO_DIGIT, NEMO_HI_DIGIT)
+any_digit = pynini.union(NEMO_DIGIT, NEMO_MA_DIGIT)
 
 
 def generate_mobile(context_keywords: pynini.Fst) -> pynini.Fst:
@@ -76,7 +76,7 @@ def generate_mobile(context_keywords: pynini.Fst) -> pynini.Fst:
     country_code = (
         pynutil.insert("country_code: \"")
         + context_before
-        + pynini.cross("+", "प्लस")
+        + pynini.cross("+", "പ്ലസ്")
         + insert_space
         + country_code_digits
         + pynutil.insert("\" ")
@@ -183,7 +183,7 @@ def generate_landline(context_keywords: pynini.Fst) -> pynini.Fst:
 
 def get_context(keywords: pynini.Fst):
 
-    all_digits = pynini.union(NEMO_HI_DIGIT, NEMO_DIGIT)
+    all_digits = pynini.union(NEMO_MA_DIGIT, NEMO_DIGIT)
 
     non_digit_char = pynini.difference(NEMO_CHAR, pynini.union(all_digits, NEMO_WHITE_SPACE))
     word = pynini.closure(non_digit_char, 1) + pynini.accep(NEMO_SPACE)
@@ -259,7 +259,7 @@ def generate_general_telephone() -> pynini.Fst:
     country_code_digits = pynini.closure(single_digit, 1, 3)
     country_code_with_plus = (
         pynutil.insert("country_code: \"")
-        + pynini.cross("+", "प्लस")
+        + pynini.cross("+", "പ്ലസ്")
         + insert_space
         + country_code_digits
         + pynutil.insert("\" ")
@@ -301,9 +301,9 @@ def generate_general_telephone() -> pynini.Fst:
 class TelephoneFst(GraphFst):
     """
     Finite state transducer for tagging telephone numbers, e.g.
-        ९१५७११४००७ -> telephone { number_part: "शून्य नौ एक पाँच सात एक एक चार शून्य शून्य सात" }
-        +९१ ९२१०५१५६०६ -> telephone { country_code: "प्लस नौ एक", number_part: "नौ दो एक शून्य पाँच एक पाँच छह शून्य छह" }
-        १३७४-३०९९८८ -> telephone { number_part: "शून्य एक तीन सात चार तीन शून्य नौ नौ आठ आठ" }
+        ൯൧൫൭൧൧൪൦൦൭ -> telephone { number_part: "പൂജ്യം ഒമ്പത് ഒന്ന് അഞ്ച് ഏഴ് ഒന്ന് ഒന്ന് നാല് പൂജ്യം പൂജ്യം ഏഴ്" }
+        +൯൧ ൯൨൧൦൫൧൫൬൦൬ -> telephone { country_code: "പ്ലസ് ഒമ്പത് ഒന്ന്", number_part: "ഒമ്പത് രണ്ട് ഒന്ന് പൂജ്യം അഞ്ച് ഒന്ന് അഞ്ച് ആറ് പൂജ്യം ആറ്" }
+        ൧൩൭൪-൩൦൯൯൮൮ -> telephone { number_part: "പൂജ്യം ഒന്ന് മൂന്ന് ഏഴ് നാല് മൂന്ന് പൂജ്യം ഒമ്പത് ഒമ്പത് എട്ട് എട്ട്" }
 
     Args:
         deterministic: if True will provide a single transduction option,

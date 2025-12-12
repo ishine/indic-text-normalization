@@ -21,8 +21,8 @@ from nemo_text_processing.text_normalization.ma.graph_utils import NEMO_NOT_QUOT
 class MathFst(GraphFst):
     """
     Finite state transducer for verbalizing math expressions, e.g.
-        math { left: "एक" operator: "बराबर" right: "दो" } -> एक बराबर दो
-        math { left: "एक" operator: "प्लस" right: "दो" } -> एक प्लस दो
+        math { left: "ഒന്ന്" operator: "തുല്യം" right: "രണ്ട്" } -> ഒന്ന് തുല്യം രണ്ട്
+        math { left: "ഒന്ന്" operator: "പ്ലസ്" right: "രണ്ട്" } -> ഒന്ന് പ്ലസ് രണ്ട്
 
     Args:
         deterministic: if True will provide a single transduction option,
@@ -87,13 +87,13 @@ class MathFst(GraphFst):
             left + insert_space + operator + insert_space + middle + insert_space + operator2 + insert_space + right
         )
 
-        # Operator with number (e.g., "+5" -> "प्लस पांच")
+        # Operator with number (e.g., "+5" -> "പ്ലസ് पांच")
         operator_number_expression = operator + insert_space + right
 
-        # Number with operator (e.g., "5*" -> "पांच गुणा")
+        # Number with operator (e.g., "5*" -> "पांच ഗുണിച്ച്")
         number_operator_expression = left + insert_space + operator
 
-        # Standalone operator (e.g., "+" -> "प्लस", "?" -> "प्रश्न चिह्न")
+        # Standalone operator (e.g., "+" -> "പ്ലസ്", "?" -> "ചോദ്യചിഹ്നം")
         # When both left and right are empty, just output the operator
         # This matches when left="" and right="", so we just output operator
         standalone_operator_expression = operator

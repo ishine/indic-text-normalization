@@ -50,7 +50,7 @@ class ElectronicFst(GraphFst):
         long_numbers = pynutil.add_weight(graph_digit_no_zero + pynini.cross("000", " हज़ार"), MIN_NEG_WEIGHT)
 
         if not deterministic:
-            graph_zero |= pynini.cross("0", "शून्य") | pynini.cross("0", "ओ")
+            graph_zero |= pynini.cross("0", "പൂജ്യം") | pynini.cross("0", "ओ")
 
         graph_digit = graph_digit_no_zero | graph_zero
         graph_symbols = pynini.string_file(get_abs_path("data/electronic/symbol.tsv")).optimize()

@@ -21,8 +21,8 @@ from nemo_text_processing.text_normalization.ma.graph_utils import NEMO_NOT_QUOT
 class MeasureFst(GraphFst):
     """
     Finite state transducer for verbalizing measure, e.g.
-        measure { negative: "true" cardinal { integer: "बारह" } units: "किलोग्राम" } -> ऋणात्मक बारह किलोग्राम
-        measure { decimal { integer_part: "बारह" fractional_part: "दो" } units: "किलोग्राम" } -> बारह दशमलव दो किलोग्राम
+        measure { negative: "true" cardinal { integer: "പന്ത്രണ്ട്" } units: "കിലോഗ്രാം" } -> നെഗറ്റീവ് പന്ത്രണ്ട് കിലോഗ്രാം
+        measure { decimal { integer_part: "പന്ത്രണ്ട്" fractional_part: "രണ്ട്" } units: "കിലോഗ്രാം" } -> പന്ത്രണ്ട് ദശാംശം രണ്ട് കിലോഗ്രാം
 
 
     Args:
