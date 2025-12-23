@@ -201,6 +201,7 @@ python tests/run_tests.py --lang bo
 python tests/run_tests.py --lang doi
 python tests/run_tests.py --lang pu
 python tests/run_tests.py --lang sa
+python tests/run_tests.py --lang as
 # ... etc.
 ```
 
