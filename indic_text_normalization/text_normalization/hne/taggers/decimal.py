@@ -15,8 +15,8 @@
 import pynini
 from pynini.lib import pynutil
 
-from indic_text_normalization.text_normalization.cg.graph_utils import GraphFst, NEMO_DIGIT, insert_space
-from indic_text_normalization.text_normalization.cg.utils import get_abs_path
+from indic_text_normalization.text_normalization.hne.graph_utils import GraphFst, NEMO_DIGIT, insert_space
+from indic_text_normalization.text_normalization.hne.utils import get_abs_path
 
 quantities = pynini.string_file(get_abs_path("data/numbers/thousands.tsv"))
 

@@ -15,7 +15,7 @@
 import pynini
 from pynini.lib import pynutil
 
-from indic_text_normalization.text_normalization.cg.graph_utils import MINUS, NEMO_NOT_QUOTE, GraphFst, insert_space
+from indic_text_normalization.text_normalization.hne.graph_utils import MINUS, NEMO_NOT_QUOTE, GraphFst, insert_space
 
 
 class FractionFst(GraphFst):

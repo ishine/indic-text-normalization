@@ -19,7 +19,7 @@ import time
 import pynini
 from pynini.lib import pynutil
 
-from indic_text_normalization.text_normalization.ase.graph_utils import (
+from ..graph_utils import (
     NEMO_SPACE,
     NEMO_WHITE_SPACE,
     GraphFst,
@@ -27,26 +27,26 @@ from indic_text_normalization.text_normalization.ase.graph_utils import (
     delete_space,
     generator_main,
 )
-from indic_text_normalization.text_normalization.ase.taggers.abbreviation import AbbreviationFst
-from indic_text_normalization.text_normalization.ase.taggers.cardinal import CardinalFst
-from indic_text_normalization.text_normalization.ase.taggers.date import DateFst
-from indic_text_normalization.text_normalization.ase.taggers.decimal import DecimalFst
-from indic_text_normalization.text_normalization.ase.taggers.electronic import ElectronicFst
-from indic_text_normalization.text_normalization.ase.taggers.fraction import FractionFst
-from indic_text_normalization.text_normalization.ase.taggers.measure import MeasureFst
-from indic_text_normalization.text_normalization.ase.taggers.money import MoneyFst
-from indic_text_normalization.text_normalization.ase.taggers.ordinal import OrdinalFst
-from indic_text_normalization.text_normalization.ase.taggers.punctuation import PunctuationFst
-from indic_text_normalization.text_normalization.ase.taggers.range import RangeFst
-from indic_text_normalization.text_normalization.ase.taggers.roman import RomanFst
-from indic_text_normalization.text_normalization.ase.taggers.serial import SerialFst
-from indic_text_normalization.text_normalization.ase.taggers.telephone import TelephoneFst
-from indic_text_normalization.text_normalization.ase.taggers.time import TimeFst
-from indic_text_normalization.text_normalization.ase.taggers.whitelist import WhiteListFst
-from indic_text_normalization.text_normalization.ase.taggers.word import WordFst
-from indic_text_normalization.text_normalization.ase.verbalizers.date import DateFst as vDateFst
-from indic_text_normalization.text_normalization.ase.verbalizers.ordinal import OrdinalFst as vOrdinalFst
-from indic_text_normalization.text_normalization.ase.verbalizers.time import TimeFst as vTimeFst
+from ..taggers.abbreviation import AbbreviationFst
+from ..taggers.cardinal import CardinalFst
+from ..taggers.date import DateFst
+from ..taggers.decimal import DecimalFst
+from ..taggers.electronic import ElectronicFst
+from ..taggers.fraction import FractionFst
+from ..taggers.measure import MeasureFst
+from ..taggers.money import MoneyFst
+from ..taggers.ordinal import OrdinalFst
+from ..taggers.punctuation import PunctuationFst
+from ..taggers.range import RangeFst
+from ..taggers.roman import RomanFst
+from ..taggers.serial import SerialFst
+from ..taggers.telephone import TelephoneFst
+from ..taggers.time import TimeFst
+from ..taggers.whitelist import WhiteListFst
+from ..taggers.word import WordFst
+from ..verbalizers.date import DateFst as vDateFst
+from ..verbalizers.ordinal import OrdinalFst as vOrdinalFst
+from ..verbalizers.time import TimeFst as vTimeFst
 
 
 class ClassifyFst(GraphFst):
@@ -129,7 +129,7 @@ class ClassifyFst(GraphFst):
             logging.debug(f"money: {time.time() - start_time:.2f}s -- {money_graph.num_states()} nodes")
 
             start_time = time.time()
-            from indic_text_normalization.text_normalization.ase.taggers.math import MathFst
+            from ..taggers.math import MathFst
             math = MathFst(cardinal=cardinal, deterministic=deterministic)
             math_graph = math.fst
             logging.debug(f"math: {time.time() - start_time:.2f}s -- {math_graph.num_states()} nodes")

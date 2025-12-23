@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import os
 
 import pynini
@@ -24,7 +23,6 @@ from indic_text_normalization.text_normalization.en.graph_utils import (
     generator_main,
 )
 from indic_text_normalization.utils.logging import logger
-
 
 class PostProcessingFst:
     """
@@ -97,17 +95,10 @@ class PostProcessingFst:
     def get_punct_postprocess_graph(self):
         """
         Returns graph to post process punctuation marks.
-
-        {``} quotes are converted to {"}. Note, if there are spaces around single quote {'}, they will be kept.
-        By default, a space is added after a punctuation mark, and spaces are removed before punctuation marks.
+        
+        For Indic languages, we preserve all spaces in the output since there's no possessive
+        apostrophe pattern like English "'s". This is a minimal post-processing step.
         """
-
-        remove_space_around_single_quote = pynini.cdrewrite(
-            delete_space, NEMO_NOT_SPACE, NEMO_NOT_SPACE, pynini.closure(NEMO_SIGMA)
-        )
-        # this works if spaces in between (good)
-        # delete space between 2 NEMO_NOT_SPACE（left and right to the space) that are with in a content of NEMO_SIGMA
-
-        graph = remove_space_around_single_quote.optimize()
-
+        # Return identity graph that doesn't modify the input
+        graph = pynini.closure(NEMO_SIGMA).optimize()
         return graph

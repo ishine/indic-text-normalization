@@ -18,7 +18,7 @@ import os
 import pynini
 from pynini.lib import pynutil
 
-from indic_text_normalization.text_normalization.cg.graph_utils import (
+from indic_text_normalization.text_normalization.hne.graph_utils import (
     NEMO_SPACE,
     NEMO_WHITE_SPACE,
     GraphFst,
@@ -26,18 +26,18 @@ from indic_text_normalization.text_normalization.cg.graph_utils import (
     delete_space,
     generator_main,
 )
-from indic_text_normalization.text_normalization.cg.taggers.cardinal import CardinalFst
-from indic_text_normalization.text_normalization.cg.taggers.date import DateFst
-from indic_text_normalization.text_normalization.cg.taggers.decimal import DecimalFst
-from indic_text_normalization.text_normalization.cg.taggers.fraction import FractionFst
-from indic_text_normalization.text_normalization.cg.taggers.measure import MeasureFst
-from indic_text_normalization.text_normalization.cg.taggers.money import MoneyFst
-from indic_text_normalization.text_normalization.cg.taggers.ordinal import OrdinalFst
-from indic_text_normalization.text_normalization.cg.taggers.punctuation import PunctuationFst
-from indic_text_normalization.text_normalization.cg.taggers.telephone import TelephoneFst
-from indic_text_normalization.text_normalization.cg.taggers.time import TimeFst
-from indic_text_normalization.text_normalization.cg.taggers.whitelist import WhiteListFst
-from indic_text_normalization.text_normalization.cg.taggers.word import WordFst
+from indic_text_normalization.text_normalization.hne.taggers.cardinal import CardinalFst
+from indic_text_normalization.text_normalization.hne.taggers.date import DateFst
+from indic_text_normalization.text_normalization.hne.taggers.decimal import DecimalFst
+from indic_text_normalization.text_normalization.hne.taggers.fraction import FractionFst
+from indic_text_normalization.text_normalization.hne.taggers.measure import MeasureFst
+from indic_text_normalization.text_normalization.hne.taggers.money import MoneyFst
+from indic_text_normalization.text_normalization.hne.taggers.ordinal import OrdinalFst
+from indic_text_normalization.text_normalization.hne.taggers.punctuation import PunctuationFst
+from indic_text_normalization.text_normalization.hne.taggers.telephone import TelephoneFst
+from indic_text_normalization.text_normalization.hne.taggers.time import TimeFst
+from indic_text_normalization.text_normalization.hne.taggers.whitelist import WhiteListFst
+from indic_text_normalization.text_normalization.hne.taggers.word import WordFst
 
 
 class ClassifyFst(GraphFst):
@@ -103,7 +103,7 @@ class ClassifyFst(GraphFst):
             ordinal = OrdinalFst(cardinal=cardinal, deterministic=deterministic)
             ordinal_graph = ordinal.fst
 
-            from indic_text_normalization.text_normalization.cg.taggers.math import MathFst
+            from indic_text_normalization.text_normalization.hne.taggers.math import MathFst
             math = MathFst(cardinal=cardinal, deterministic=deterministic)
             math_graph = math.fst
 

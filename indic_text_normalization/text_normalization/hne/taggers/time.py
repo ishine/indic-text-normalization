@@ -15,7 +15,7 @@
 import pynini
 from pynini.lib import pynutil
 
-from indic_text_normalization.text_normalization.cg.graph_utils import (
+from indic_text_normalization.text_normalization.hne.graph_utils import (
     CG_DEDH,
     CG_DHAI,
     CG_PAUNE,
@@ -27,7 +27,7 @@ from indic_text_normalization.text_normalization.cg.graph_utils import (
     GraphFst,
     insert_space,
 )
-from indic_text_normalization.text_normalization.cg.utils import get_abs_path
+from indic_text_normalization.text_normalization.hne.utils import get_abs_path
 
 # Time patterns specific to time tagger
 CG_DOUBLE_ZERO = "००"

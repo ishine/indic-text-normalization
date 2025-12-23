@@ -15,9 +15,9 @@
 import pynini
 from pynini.lib import pynutil
 
-from indic_text_normalization.text_normalization.ase.graph_utils import GraphFst
-from indic_text_normalization.text_normalization.ase.taggers.cardinal import CardinalFst
-from indic_text_normalization.text_normalization.ase.utils import get_abs_path
+from ..graph_utils import GraphFst
+from ..taggers.cardinal import CardinalFst
+from ..utils import get_abs_path
 
 
 class OrdinalFst(GraphFst):

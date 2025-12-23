@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from indic_text_normalization.text_normalization.cg.taggers.tokenize_and_classify import ClassifyFst
-from indic_text_normalization.text_normalization.cg.verbalizers.verbalize import VerbalizeFst
-from indic_text_normalization.text_normalization.cg.verbalizers.verbalize_final import VerbalizeFinalFst
+from indic_text_normalization.text_normalization.hne.taggers.tokenize_and_classify import ClassifyFst
+from indic_text_normalization.text_normalization.hne.verbalizers.verbalize import VerbalizeFst
+from indic_text_normalization.text_normalization.hne.verbalizers.verbalize_final import VerbalizeFinalFst
 

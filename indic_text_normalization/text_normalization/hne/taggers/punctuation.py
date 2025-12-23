@@ -5,7 +5,7 @@ import pynini
 from pynini.examples import plurals
 from pynini.lib import pynutil
 
-from indic_text_normalization.text_normalization.cg.graph_utils import NEMO_NOT_SPACE, NEMO_SIGMA, GraphFst
+from indic_text_normalization.text_normalization.hne.graph_utils import NEMO_NOT_SPACE, NEMO_SIGMA, GraphFst
 
 
 class PunctuationFst(GraphFst):

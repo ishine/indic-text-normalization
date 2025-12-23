@@ -15,8 +15,8 @@
 import pynini
 from pynini.lib import pynutil
 
-from indic_text_normalization.text_normalization.ase.graph_utils import GraphFst, NEMO_DIGIT, NEMO_HI_DIGIT, insert_space
-from indic_text_normalization.text_normalization.ase.utils import get_abs_path
+from ..graph_utils import GraphFst, NEMO_DIGIT, NEMO_HI_DIGIT, insert_space
+from ..utils import get_abs_path
 
 # Convert Arabic digits (0-9) to Hindi digits (०-९)
 arabic_to_hindi_digit = pynini.string_map([

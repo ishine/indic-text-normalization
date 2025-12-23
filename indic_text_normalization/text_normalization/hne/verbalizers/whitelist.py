@@ -16,7 +16,7 @@
 import pynini
 from pynini.lib import pynutil
 
-from indic_text_normalization.text_normalization.cg.graph_utils import NEMO_CHAR, NEMO_SIGMA, GraphFst, delete_space
+from indic_text_normalization.text_normalization.hne.graph_utils import NEMO_CHAR, NEMO_SIGMA, GraphFst, delete_space
 
 
 class WhiteListFst(GraphFst):

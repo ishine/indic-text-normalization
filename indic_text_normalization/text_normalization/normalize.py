@@ -45,9 +45,10 @@ sys.setrecursionlimit(3000)
 SPACE_DUP = re.compile(' {2,}')
 
 # Supported language codes (must match folder names in text_normalization/)
+# Uses standard ISO 639 codes: ISO 639-1 (2-letter) or ISO 639-3 (3-letter)
 SUPPORTED_LANGUAGES = [
-    'en', 'hi', 'bn', 'kn', 'ta', 'te', 'mr', 'gu', 'ma', 'ne', 
-    'sa', 'pu', 'as', 'bo', 'doi', 'bho', 'mag', 'mai', 'hne'
+    'en', 'hi', 'bn', 'kn', 'ta', 'te', 'mr', 'gu', 'ml', 'ne', 
+    'sa', 'pa', 'as', 'brx', 'doi', 'bho', 'mag', 'mai', 'hne'
 ]
 
 

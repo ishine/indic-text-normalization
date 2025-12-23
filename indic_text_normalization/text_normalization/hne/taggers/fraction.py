@@ -15,7 +15,7 @@
 import pynini
 from pynini.lib import pynutil
 
-from indic_text_normalization.text_normalization.cg.graph_utils import (
+from indic_text_normalization.text_normalization.hne.graph_utils import (
     CG_DEDH,
     CG_DHAI,
     CG_PAUNE,
@@ -24,7 +24,7 @@ from indic_text_normalization.text_normalization.cg.graph_utils import (
     NEMO_SPACE,
     GraphFst,
 )
-from indic_text_normalization.text_normalization.cg.utils import get_abs_path
+from indic_text_normalization.text_normalization.hne.utils import get_abs_path
 
 CG_ONE_HALF = "१/२"  # 1/2
 CG_ONE_QUARTER = "१/४"  # 1/4

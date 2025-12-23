@@ -15,13 +15,13 @@
 import pynini
 from pynini.lib import pynutil
 
-from indic_text_normalization.text_normalization.cg.graph_utils import (
+from indic_text_normalization.text_normalization.hne.graph_utils import (
     MIN_NEG_WEIGHT,
     NEMO_NOT_SPACE,
     GraphFst,
     convert_space,
 )
-from indic_text_normalization.text_normalization.cg.taggers.punctuation import PunctuationFst
+from indic_text_normalization.text_normalization.hne.taggers.punctuation import PunctuationFst
 
 
 class WordFst(GraphFst):

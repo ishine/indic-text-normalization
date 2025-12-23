@@ -20,11 +20,11 @@ A production-ready, comprehensive Python package for text normalization across m
 - **Chhattisgarhi** (hne) - छत्तीसगढ़ी
 - **Maithili** (mai) - मैथिली
 - **Assamese** (as) - অসমীয়া
-- **Bodo** (bo) - बड़ो
+- **Bodo** (brx) - बड़ो
 - **Dogri** (doi) - डोगरी
 - **Gujarati** (gu) - ગુજરાતી
-- **Malayalam** (ma) - മലയാളം
-- **Punjabi** (pu) - ਪੰਜਾਬੀ
+- **Malayalam** (ml) - മലയാളം
+- **Punjabi** (pa) - ਪੰਜਾਬੀ
 - **Tamil** (ta) - தமிழ்
 - **English (Indian)** (en) - English
 - **Nepali** (ne) - नेपाली
@@ -145,7 +145,7 @@ normalized = normalizer.normalize(text)
 
 **Malayalam:**
 ```python
-normalizer = Normalizer(input_case='cased', lang='ma')
+normalizer = Normalizer(input_case='cased', lang='ml')
 text = "സമയം 10:30 ആണ്"
 normalized = normalizer.normalize(text)
 ```
@@ -164,15 +164,15 @@ indic-text-normalization/
 ├── text_normalization/
 │   ├── hi/          # Hindi
 │   ├── ta/          # Tamil
-│   ├── ma/          # Malayalam
+│   ├── ml/          # Malayalam
 │   ├── gu/          # Gujarati
-│   ├── ase/         # Assamese
+│   ├── as/          # Assamese
 │   ├── mai/         # Maithili
 │   ├── mag/         # Magadhi
 │   ├── hne/         # Chhattisgarhi
-│   ├── bo/          # Bodo
+│   ├── brx/         # Bodo
 │   ├── doi/         # Dogri
-│   ├── pu/          # Punjabi
+│   ├── pa/          # Punjabi
 │   └── sa/          # Sanskrit
 ├── tests/           # Test notebooks and scripts
 └── README.md
@@ -191,17 +191,17 @@ Tests are available in the `tests/` directory for each language:
 ```bash
 python tests/run_tests.py --lang hi
 python tests/run_tests.py --lang ta
-python tests/run_tests.py --lang ma
+python tests/run_tests.py --lang mr
+python tests/run_tests.py --lang te
+python tests/run_tests.py --lang kn
 python tests/run_tests.py --lang gu
-python tests/run_tests.py --lang ase
-python tests/run_tests.py --lang mai
-python tests/run_tests.py --lang mag
-python tests/run_tests.py --lang hne
+python tests/run_tests.py --lang as
 python tests/run_tests.py --lang bo
 python tests/run_tests.py --lang doi
 python tests/run_tests.py --lang pu
-python tests/run_tests.py --lang sa
-python tests/run_tests.py --lang as
+python tests/run_tests.py --lang mai
+python tests/run_tests.py --lang mag
+python tests/run_tests.py --lang hne
 # ... etc.
 ```
 

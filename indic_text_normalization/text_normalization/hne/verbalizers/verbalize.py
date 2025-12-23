@@ -12,18 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from indic_text_normalization.text_normalization.cg.graph_utils import GraphFst
-from indic_text_normalization.text_normalization.cg.verbalizers.cardinal import CardinalFst
-from indic_text_normalization.text_normalization.cg.verbalizers.date import DateFst
-from indic_text_normalization.text_normalization.cg.verbalizers.decimal import DecimalFst
-from indic_text_normalization.text_normalization.cg.verbalizers.fraction import FractionFst
-from indic_text_normalization.text_normalization.cg.verbalizers.math import MathFst
-from indic_text_normalization.text_normalization.cg.verbalizers.measure import MeasureFst
-from indic_text_normalization.text_normalization.cg.verbalizers.money import MoneyFst
-from indic_text_normalization.text_normalization.cg.verbalizers.ordinal import OrdinalFst
-from indic_text_normalization.text_normalization.cg.verbalizers.telephone import TelephoneFst
-from indic_text_normalization.text_normalization.cg.verbalizers.time import TimeFst
-from indic_text_normalization.text_normalization.cg.verbalizers.whitelist import WhiteListFst
+from indic_text_normalization.text_normalization.hne.graph_utils import GraphFst
+from indic_text_normalization.text_normalization.hne.verbalizers.cardinal import CardinalFst
+from indic_text_normalization.text_normalization.hne.verbalizers.date import DateFst
+from indic_text_normalization.text_normalization.hne.verbalizers.decimal import DecimalFst
+from indic_text_normalization.text_normalization.hne.verbalizers.fraction import FractionFst
+from indic_text_normalization.text_normalization.hne.verbalizers.math import MathFst
+from indic_text_normalization.text_normalization.hne.verbalizers.measure import MeasureFst
+from indic_text_normalization.text_normalization.hne.verbalizers.money import MoneyFst
+from indic_text_normalization.text_normalization.hne.verbalizers.ordinal import OrdinalFst
+from indic_text_normalization.text_normalization.hne.verbalizers.telephone import TelephoneFst
+from indic_text_normalization.text_normalization.hne.verbalizers.time import TimeFst
+from indic_text_normalization.text_normalization.hne.verbalizers.whitelist import WhiteListFst
 
 
 class VerbalizeFst(GraphFst):

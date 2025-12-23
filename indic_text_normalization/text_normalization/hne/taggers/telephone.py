@@ -16,7 +16,7 @@
 import pynini
 from pynini.lib import pynutil
 
-from indic_text_normalization.text_normalization.cg.graph_utils import (
+from indic_text_normalization.text_normalization.hne.graph_utils import (
     NEMO_CHAR,
     NEMO_DIGIT,
     NEMO_CG_DIGIT,
@@ -26,7 +26,7 @@ from indic_text_normalization.text_normalization.cg.graph_utils import (
     delete_space,
     insert_space,
 )
-from indic_text_normalization.text_normalization.cg.utils import get_abs_path
+from indic_text_normalization.text_normalization.hne.utils import get_abs_path
 
 CG_ZERO_DIGIT = pynini.union("0", "०")
 CG_MOBILE_START_DIGITS = pynini.union("६", "७", "८", "९", "6", "7", "8", "9").optimize()

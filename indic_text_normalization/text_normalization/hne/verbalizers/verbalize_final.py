@@ -18,14 +18,14 @@ import os
 import pynini
 from pynini.lib import pynutil
 
-from indic_text_normalization.text_normalization.cg.graph_utils import (
+from indic_text_normalization.text_normalization.hne.graph_utils import (
     GraphFst,
     delete_extra_space,
     delete_space,
     generator_main,
 )
-from indic_text_normalization.text_normalization.cg.verbalizers.verbalize import VerbalizeFst
-from indic_text_normalization.text_normalization.cg.verbalizers.word import WordFst
+from indic_text_normalization.text_normalization.hne.verbalizers.verbalize import VerbalizeFst
+from indic_text_normalization.text_normalization.hne.verbalizers.word import WordFst
 
 
 class VerbalizeFinalFst(GraphFst):

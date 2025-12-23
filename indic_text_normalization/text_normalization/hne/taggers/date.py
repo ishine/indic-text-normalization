@@ -15,7 +15,7 @@
 import pynini
 from pynini.lib import pynutil
 
-from indic_text_normalization.text_normalization.cg.graph_utils import (
+from indic_text_normalization.text_normalization.hne.graph_utils import (
     NEMO_DIGIT,
     NEMO_CG_DIGIT,
     NEMO_CG_NON_ZERO,
@@ -23,7 +23,7 @@ from indic_text_normalization.text_normalization.cg.graph_utils import (
     GraphFst,
     insert_space,
 )
-from indic_text_normalization.text_normalization.cg.utils import get_abs_path
+from indic_text_normalization.text_normalization.hne.utils import get_abs_path
 
 # Convert Arabic digits (0-9) to Chhattisgarhi digits (०-९)
 arabic_to_cg_digit = pynini.string_map([

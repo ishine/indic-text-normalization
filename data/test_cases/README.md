@@ -14,12 +14,12 @@ Each language has its own test file named `<lang>.txt`:
 - `gu.txt` - Gujarati
 - `kn.txt` - Kannada
 - `mr.txt` - Marathi
-- `ma.txt` - Malayalam
+- `ml.txt` - Malayalam
 - `ne.txt` - Nepali
 - `sa.txt` - Sanskrit
-- `bo.txt` - Bodo
+- `brx.txt` - Bodo
 - `doi.txt` - Dogri
-- `pu.txt` - Punjabi
+- `pa.txt` - Punjabi
 - `as.txt` - Assamese
 - `bho.txt` - Bhojpuri
 - `mag.txt` - Magadhi
@@ -119,12 +119,12 @@ Total test cases: **2,215** across **19 languages**
 | Gujarati | 103 | gu.txt |
 | Kannada | 117 | kn.txt |
 | Marathi | 103 | mr.txt |
-| Malayalam | 129 | ma.txt |
+| Malayalam | 129 | ml.txt |
 | Nepali | 125 | ne.txt |
 | Sanskrit | 125 | sa.txt |
-| Bodo | 125 | bo.txt |
+| Bodo | 125 | brx.txt |
 | Dogri | 125 | doi.txt |
-| Punjabi | 125 | pu.txt |
+| Punjabi | 125 | pa.txt |
 | Assamese | 120 | as.txt |
 | Bhojpuri | 103 | bho.txt |
 | Magadhi | 103 | mag.txt |

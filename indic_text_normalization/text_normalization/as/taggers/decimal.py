@@ -15,13 +15,13 @@
 import pynini
 from pynini.lib import pynutil
 
-from indic_text_normalization.text_normalization.ase.graph_utils import (
+from ..graph_utils import (
     NEMO_DIGIT,
     NEMO_HI_DIGIT,
     GraphFst,
     insert_space,
 )
-from indic_text_normalization.text_normalization.ase.utils import get_abs_path
+from ..utils import get_abs_path
 
 quantities = pynini.string_file(get_abs_path("data/numbers/thousands.tsv"))
 

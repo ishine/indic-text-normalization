@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from indic_text_normalization.text_normalization.ase.taggers.tokenize_and_classify import ClassifyFst
-from indic_text_normalization.text_normalization.ase.verbalizers.verbalize import VerbalizeFst
-from indic_text_normalization.text_normalization.ase.verbalizers.verbalize_final import VerbalizeFinalFst
+# Note: 'as' is a Python reserved keyword, so we cannot use direct imports here.
+# The Normalizer class uses importlib.import_module() with string paths instead,
+# which works fine with reserved keywords when passed as strings.

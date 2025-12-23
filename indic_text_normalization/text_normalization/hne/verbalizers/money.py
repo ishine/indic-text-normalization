@@ -26,7 +26,7 @@ major_minor_currencies = {
     "नाइरा": "कोबो",
     "यूरो": "सेंट",
 }
-from indic_text_normalization.text_normalization.cg.graph_utils import NEMO_NOT_QUOTE, NEMO_SPACE, GraphFst
+from indic_text_normalization.text_normalization.hne.graph_utils import NEMO_NOT_QUOTE, NEMO_SPACE, GraphFst
 
 
 class MoneyFst(GraphFst):
