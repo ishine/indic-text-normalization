@@ -21,7 +21,7 @@ A production-ready, comprehensive Python package for text normalization across m
 - **Maithili** (mai) - मैथिली
 - **Assamese** (as) - অসমীয়া
 - **Bodo** (bo) - बड़ो
-- **Dogri** (do) - डोगरी
+- **Dogri** (doi) - डोगरी
 - **Gujarati** (gu) - ગુજરાતી
 - **Malayalam** (ma) - മലയാളം
 - **Punjabi** (pu) - ਪੰਜਾਬੀ
@@ -171,7 +171,7 @@ indic-text-normalization/
 │   ├── mag/         # Magadhi
 │   ├── hne/         # Chhattisgarhi
 │   ├── bo/          # Bodo
-│   ├── do/          # Dogri
+│   ├── doi/         # Dogri
 │   ├── pu/          # Punjabi
 │   └── sa/          # Sanskrit
 ├── tests/           # Test notebooks and scripts
@@ -198,7 +198,7 @@ python tests/run_tests.py --lang mai
 python tests/run_tests.py --lang mag
 python tests/run_tests.py --lang hne
 python tests/run_tests.py --lang bo
-python tests/run_tests.py --lang do
+python tests/run_tests.py --lang doi
 python tests/run_tests.py --lang pu
 python tests/run_tests.py --lang sa
 # ... etc.
@@ -246,22 +246,7 @@ This project is licensed under the Apache 2.0 License. See the [LICENSE](LICENSE
 
 ## Acknowledgments
 
-This project is a derivative work based on [NVIDIA NeMo Text Processing](https://github.com/NVIDIA/NeMo-text-processing).
-
-### Original Work
-- **NVIDIA NeMo Text Processing** - Copyright 2020-2024 NVIDIA Corporation
-- Original repository: https://github.com/NVIDIA/NeMo-text-processing
-- Base WFST framework, English language module, and core architecture
-
-### Contributions by Kenpath Technologies Pvt Ltd
-- Comprehensive Indic language support for 19 Indian languages
-- Language-specific taggers and verbalizers for each semiotic class
-- Native script digit handling and verbalization
-- Cultural and linguistic adaptations for Indic languages
-- Test cases and validation data
-
-### Relationship to Upstream
-This project maintains API compatibility with NVIDIA NeMo Text Processing while extending support to Indic languages. The core WFST architecture and English module are derived from the original NeMo framework. All Indic language modules (Hindi, Bengali, Tamil, Telugu, etc.) are new additions developed specifically for this fork.
+This project is built upon [NVIDIA NeMo Text Processing](https://github.com/NVIDIA/NeMo-text-processing), extending it with comprehensive support for 19 Indian languages. We are grateful to NVIDIA and Google for their foundational work on WFST-based text normalization.
 
 ## Support
 

@@ -55,7 +55,7 @@ python tests/run_tests.py --lang hi --category time --verbose
 - `ne` - Nepali
 - `sa` - Sanskrit
 - `bo` - Bodo
-- `do` - Dogri
+- `doi` - Dogri
 - `Pu` - Punjabi
 - `ase` - Assamese
 - `bho` - Bhojpuri

@@ -165,7 +165,7 @@ Examples:
   python tests/run_tests.py --lang en
   
 Supported languages:
-  en, hi, bn, ta, te, gu, kn, mr, ma, ne, sa, bo, do, pu, as, bho, mag, mai, hne
+  en, hi, bn, ta, te, gu, kn, mr, ma, ne, sa, bo, doi, pu, as, bho, mag, mai, hne
         """
     )
     

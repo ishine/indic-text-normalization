@@ -18,7 +18,7 @@ Each language has its own test file named `<lang>.txt`:
 - `ne.txt` - Nepali
 - `sa.txt` - Sanskrit
 - `bo.txt` - Bodo
-- `do.txt` - Dogri
+- `doi.txt` - Dogri
 - `pu.txt` - Punjabi
 - `as.txt` - Assamese
 - `bho.txt` - Bhojpuri
@@ -123,7 +123,7 @@ Total test cases: **2,215** across **19 languages**
 | Nepali | 125 | ne.txt |
 | Sanskrit | 125 | sa.txt |
 | Bodo | 125 | bo.txt |
-| Dogri | 125 | do.txt |
+| Dogri | 125 | doi.txt |
 | Punjabi | 125 | pu.txt |
 | Assamese | 120 | as.txt |
 | Bhojpuri | 103 | bho.txt |

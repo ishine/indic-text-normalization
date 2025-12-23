@@ -12,32 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import importlib
 import itertools
 import json
 import os
 import re
 import shutil
 import sys
-from argparse import ArgumentParser
 from collections import OrderedDict
 from glob import glob
 from math import factorial
-from time import perf_counter
 from typing import Dict, List, Optional, Union
 
 import pynini
 import regex
-import tqdm
 from joblib import Parallel, delayed
 from pynini.lib.rewrite import top_rewrite
 from sacremoses import MosesDetokenizer
 from tqdm import tqdm
 
 from indic_text_normalization.text_normalization.data_loader_utils import (
-    load_file,
     post_process_punct,
     pre_process,
-    write_file,
 )
 from indic_text_normalization.text_normalization.preprocessing_utils import additional_split
 from indic_text_normalization.text_normalization.token_parser import PRESERVE_ORDER_KEY, TokenParser
@@ -48,37 +44,40 @@ sys.setrecursionlimit(3000)
 
 SPACE_DUP = re.compile(' {2,}')
 
+# Supported language codes (must match folder names in text_normalization/)
+SUPPORTED_LANGUAGES = [
+    'en', 'hi', 'bn', 'kn', 'ta', 'te', 'mr', 'gu', 'ma', 'ne', 
+    'sa', 'pu', 'as', 'bo', 'doi', 'bho', 'mag', 'mai', 'hne'
+]
+
 
 """
-To normalize a single entry:
-    python normalize.py --text=<INPUT_TEXT>
-        
-To normalize text in .json manifest:
+Indic Text Normalization - Library Usage
 
-    python normalize.py \
-        --input_file=<PATH TO INPUT .JSON MANIFEST> \
-        --output_file=<PATH TO OUTPUT .JSON MANIFEST> \
-        --n_jobs=-1 \
-        --batch_size=300 \
-        --manifest_text_field="text" \
-        --whitelist=<PATH TO YOUR WHITELIST>
-    
-    For a complete list of optional arguments, run:
-    >>> python normalize.py --help
-
-
-To integrate Normalizer in your script:
+Example usage:
     >>> from indic_text_normalization.text_normalization.normalize import Normalizer
-    # see the script for args details
-    >>> normalizer_en = Normalizer(input_case='cased', lang='en', cache_dir=CACHE_DIR, overwrite_cache=False, post_process=True)
-    >>> normalizer_en.normalize("<INPUT_TEXT>")
-    # normalize list of entries
-    >>> normalizer_en.normalize_list(["<INPUT_TEXT1>", "<INPUT_TEXT2>"])
-    # normalize .json manifest entries
-    >>> normalizer_en.normalize_manifest(manifest=<PATH TO INPUT .JSON MANIFEST>, n_jobs=-1, batch_size=300, 
-                                        output_filename=<PATH TO OUTPUT .JSON MANIFEST>, text_field="text",
-                                        punct_pre_process=False, punct_post_process=False)
+    
+    # Initialize for a specific language
+    >>> normalizer = Normalizer(input_case='cased', lang='hi')
+    
+    # Normalize single text
+    >>> normalizer.normalize("मैं 25 साल का हूं")
+    
+    # Normalize list of texts
+    >>> normalizer.normalize_list(["text1", "text2"])
+    
+    # Normalize .json manifest
+    >>> normalizer.normalize_manifest(
+    ...     manifest="path/to/manifest.json",
+    ...     n_jobs=-1,
+    ...     batch_size=300,
+    ...     output_filename="path/to/output.json",
+    ...     text_field="text",
+    ...     punct_pre_process=False,
+    ...     punct_post_process=False
+    ... )
 
+For more details, see the Normalizer class documentation below.
 """
 
 
@@ -105,106 +104,62 @@ class Normalizer:
         self,
         input_case: str = 'cased',
         lang: str = 'en',
-        deterministic: bool = True,
         cache_dir: str = None,
         overwrite_cache: bool = False,
         whitelist: str = None,
-        lm: bool = False,
         post_process: bool = True,
         max_number_of_permutations_per_split: int = 729,
     ):
         assert input_case in ["lower_cased", "cased"]
-
+        
+        # Validate language code
+        if lang not in SUPPORTED_LANGUAGES:
+            raise NotImplementedError(
+                f"Language '{lang}' is not supported. "
+                f"Supported languages: {', '.join(sorted(SUPPORTED_LANGUAGES))}"
+            )
+        
+        self.lang = lang
+        self.input_case = input_case
         self.post_processor = None
 
-        if lang == "en":
-            from indic_text_normalization.text_normalization.en.verbalizers.post_processing import PostProcessingFst
-            from indic_text_normalization.text_normalization.en.verbalizers.verbalize_final import VerbalizeFinalFst
+        # Load language-specific modules dynamically
+        base_path = f'indic_text_normalization.text_normalization.{lang}'
+        
+        # Load tagger
+        tagger_module = importlib.import_module(f'{base_path}.taggers.tokenize_and_classify')
+        ClassifyFst = tagger_module.ClassifyFst
+        
+        # Load verbalizer
+        verbalizer_module = importlib.import_module(f'{base_path}.verbalizers.verbalize_final')
+        VerbalizeFinalFst = verbalizer_module.VerbalizeFinalFst
 
-            if post_process:
-                self.post_processor = PostProcessingFst(cache_dir=cache_dir, overwrite_cache=overwrite_cache)
+        # Load post-processor if available and requested
+        if post_process:
+            try:
+                post_processing_module = importlib.import_module(f'{base_path}.verbalizers.post_processing')
+                self.post_processor = post_processing_module.PostProcessingFst(
+                    cache_dir=cache_dir, overwrite_cache=overwrite_cache
+                )
+            except (ImportError, AttributeError):
+                # Post-processing not available for this language
+                pass
 
-            if deterministic:
-                from indic_text_normalization.text_normalization.en.taggers.tokenize_and_classify import ClassifyFst
-            else:
-                if lm:
-                    from indic_text_normalization.text_normalization.en.taggers.tokenize_and_classify_lm import ClassifyFst
-                else:
-                    from indic_text_normalization.text_normalization.en.taggers.tokenize_and_classify_with_audio import (
-                        ClassifyFst,
-                    )
-        elif lang == 'hi':
-            from indic_text_normalization.text_normalization.hi.taggers.tokenize_and_classify import ClassifyFst
-            from indic_text_normalization.text_normalization.hi.verbalizers.verbalize_final import VerbalizeFinalFst
-        elif lang == 'bn':  # Bengali
-            from indic_text_normalization.text_normalization.bn.taggers.tokenize_and_classify import ClassifyFst
-            from indic_text_normalization.text_normalization.bn.verbalizers.verbalize_final import VerbalizeFinalFst
-        elif lang == 'kn':  # Kannada
-            from indic_text_normalization.text_normalization.kn.taggers.tokenize_and_classify import ClassifyFst
-            from indic_text_normalization.text_normalization.kn.verbalizers.verbalize_final import VerbalizeFinalFst
-        elif lang == 'ta':
-            from indic_text_normalization.text_normalization.ta.taggers.tokenize_and_classify import ClassifyFst
-            from indic_text_normalization.text_normalization.ta.verbalizers.verbalize_final import VerbalizeFinalFst
-        elif lang == 'bho':  # Bhojpuri
-            from indic_text_normalization.text_normalization.bho.taggers.tokenize_and_classify import ClassifyFst
-            from indic_text_normalization.text_normalization.bho.verbalizers.verbalize_final import VerbalizeFinalFst
-        elif lang == 'mag':  # Magadhi
-            from indic_text_normalization.text_normalization.mag.taggers.tokenize_and_classify import ClassifyFst
-            from indic_text_normalization.text_normalization.mag.verbalizers.verbalize_final import VerbalizeFinalFst
-        elif lang == 'cg':  # Chhattisgarhi
-            from indic_text_normalization.text_normalization.cg.taggers.tokenize_and_classify import ClassifyFst
-            from indic_text_normalization.text_normalization.cg.verbalizers.verbalize_final import VerbalizeFinalFst
-        elif lang == 'mai':  # Maithili
-            from indic_text_normalization.text_normalization.mai.taggers.tokenize_and_classify import ClassifyFst
-            from indic_text_normalization.text_normalization.mai.verbalizers.verbalize_final import VerbalizeFinalFst
-        elif lang == 'te':  # Telugu
-            from indic_text_normalization.text_normalization.te.taggers.tokenize_and_classify import ClassifyFst
-            from indic_text_normalization.text_normalization.te.verbalizers.verbalize_final import VerbalizeFinalFst
-        elif lang == 'mr':  # Marathi
-            from indic_text_normalization.text_normalization.mr.taggers.tokenize_and_classify import ClassifyFst
-            from indic_text_normalization.text_normalization.mr.verbalizers.verbalize_final import VerbalizeFinalFst
-        elif lang == 'gu':  # Gujarati
-            from indic_text_normalization.text_normalization.gu.taggers.tokenize_and_classify import ClassifyFst
-            from indic_text_normalization.text_normalization.gu.verbalizers.verbalize_final import VerbalizeFinalFst
-        elif lang == 'ase':  # Assamese
-            from indic_text_normalization.text_normalization.ase.taggers.tokenize_and_classify import ClassifyFst
-            from indic_text_normalization.text_normalization.ase.verbalizers.verbalize_final import VerbalizeFinalFst
-        elif lang == 'bo':  # Bodo
-            from indic_text_normalization.text_normalization.bo.taggers.tokenize_and_classify import ClassifyFst
-            from indic_text_normalization.text_normalization.bo.verbalizers.verbalize_final import VerbalizeFinalFst
-        elif lang == 'do':  # Dogri
-            from indic_text_normalization.text_normalization.do.taggers.tokenize_and_classify import ClassifyFst
-            from indic_text_normalization.text_normalization.do.verbalizers.verbalize_final import VerbalizeFinalFst
-        elif lang == 'ma':  # Malayalam
-            from indic_text_normalization.text_normalization.ma.taggers.tokenize_and_classify import ClassifyFst
-            from indic_text_normalization.text_normalization.ma.verbalizers.verbalize_final import VerbalizeFinalFst
-        elif lang == 'pu':  # Punjabi
-            from indic_text_normalization.text_normalization.pu.taggers.tokenize_and_classify import ClassifyFst
-            from indic_text_normalization.text_normalization.pu.verbalizers.verbalize_final import VerbalizeFinalFst
-        elif lang == 'ne':  # Nepali
-            from indic_text_normalization.text_normalization.ne.taggers.tokenize_and_classify import ClassifyFst
-            from indic_text_normalization.text_normalization.ne.verbalizers.verbalize_final import VerbalizeFinalFst
-        elif lang == 'sa':  # Sanskrit
-            from indic_text_normalization.text_normalization.sa.taggers.tokenize_and_classify import ClassifyFst
-            from indic_text_normalization.text_normalization.sa.verbalizers.verbalize_final import VerbalizeFinalFst
-        else:
-            raise NotImplementedError(f"Language {lang} has not been supported yet.")
-
-        self.input_case = input_case
+        # Initialize tagger and verbalizer
         self.tagger = ClassifyFst(
             input_case=self.input_case,
-            deterministic=deterministic,
+            deterministic=True,
             cache_dir=cache_dir,
             overwrite_cache=overwrite_cache,
             whitelist=whitelist,
         )
 
         self.verbalizer = VerbalizeFinalFst(
-            deterministic=deterministic, cache_dir=cache_dir, overwrite_cache=overwrite_cache
+            deterministic=True, cache_dir=cache_dir, overwrite_cache=overwrite_cache
         )
+        
         self.max_number_of_permutations_per_split = max_number_of_permutations_per_split
         self.parser = TokenParser()
-        self.lang = lang
         self.moses_detokenizer = MosesDetokenizer(lang=lang)
 
     def normalize_list(
@@ -454,7 +409,6 @@ class Normalizer:
             batch_size: number of samples to process per iteration (int)
             output_filename: path to .json file to save normalized text
             text_field: name of the field in the manifest to normalize
-            **kwargs are need for audio-based normalization that requires extra args
         """
 
         def _process_batch(
@@ -699,145 +653,3 @@ class Normalizer:
         if self.post_processor is not None:
             normalized_text = top_rewrite(normalized_text, self.post_processor.fst)
         return normalized_text
-
-
-def parse_args():
-    parser = ArgumentParser()
-    input = parser.add_mutually_exclusive_group()
-    input.add_argument("--text", dest="input_string", help="input string", type=str)
-    input.add_argument(
-        "--input_file",
-        dest="input_file",
-        help="input file path. "
-        "The input file can be either a .txt file containing one example for normalization per line or "
-        "a .json manifest file. Field to normalize in .json manifest is specified with `--manifest_text_field` arg.",
-        type=str,
-    )
-    parser.add_argument(
-        '--manifest_text_field',
-        help="The field in a .json manifest to normalize (applicable only when input_file is a .json manifest)",
-        type=str,
-        default="text",
-    )
-    parser.add_argument(
-        "--output_field",
-        help="Name of the field in a .json manifest in which to save normalized text (applicable only when input_file is a .json manifest)",
-        type=str,
-        default="normalized",
-    )
-    parser.add_argument('--output_file', dest="output_file", help="Output file path", type=str)
-    parser.add_argument(
-        "--language",
-        help="language",
-        choices=["en", "hi", "kn", "bn", "mr", "bho", "cg", "mag", "mai", "ta", "te", "gu", "ase", "bo", "do", "ma", "pu", "ne", "sa"],
-        default="en",
-        type=str,
-    )
-    parser.add_argument(
-        "--input_case",
-        help="Input text capitalization, set to 'cased' if text contains capital letters."
-        "This argument affects normalization rules applied to the text. Note, `lower_cased` won't lower case input.",
-        choices=["lower_cased", "cased"],
-        default="cased",
-        type=str,
-    )
-    parser.add_argument("--verbose", help="print info for debugging", action='store_true')
-    parser.add_argument(
-        "--no_post_process",
-        help="WFST-based post processing, e.g. to remove extra spaces added during TN, normalize punctuation marks [could differ from the input]. Only Eng is supported, not supported in Sparrowhawk",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--punct_post_process",
-        help="Add this flag to enable punctuation post processing to match input.",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--punct_pre_process",
-        help="Add this flag to add spaces around square brackets, otherwise text between square brackets won't be normalized",
-        action="store_true",
-    )
-    parser.add_argument("--overwrite_cache", help="Add this flag to re-create .far grammar files", action="store_true")
-    parser.add_argument(
-        "--whitelist",
-        help="Path to a file with with whitelist replacement,"
-        "e.g., for English, whitelist files are stored under text_normalization/en/data/whitelist",
-        default=None,
-        type=str,
-    )
-    parser.add_argument(
-        "--cache_dir",
-        help="path to a dir with .far grammar file. Set to None to avoid using cache",
-        default=None,
-        type=str,
-    )
-    parser.add_argument("--n_jobs", default=-2, type=int, help="The maximum number of concurrently running jobs")
-    parser.add_argument("--batch_size", default=200, type=int, help="Number of examples for each process")
-    parser.add_argument(
-        "--max_number_of_permutations_per_split",
-        default=729,
-        type=int,
-        help="a maximum number of permutations which can be generated from input sequence of tokens.",
-    )
-    return parser.parse_args()
-
-
-if __name__ == "__main__":
-    args = parse_args()
-    whitelist = os.path.abspath(args.whitelist) if args.whitelist else None
-
-    if not args.input_string and not args.input_file:
-        raise ValueError("Either `--text` or `--input_file` required")
-
-    normalizer = Normalizer(
-        input_case=args.input_case,
-        post_process=not args.no_post_process,
-        cache_dir=args.cache_dir,
-        overwrite_cache=args.overwrite_cache,
-        whitelist=whitelist,
-        lang=args.language,
-        max_number_of_permutations_per_split=args.max_number_of_permutations_per_split,
-    )
-    start_time = perf_counter()
-    if args.input_string:
-        output = normalizer.normalize(
-            args.input_string,
-            verbose=args.verbose,
-            punct_pre_process=args.punct_pre_process,
-            punct_post_process=args.punct_post_process,
-        )
-        print("=" * 40)
-        print(output)
-        print("=" * 40)
-    elif args.input_file:
-        if args.input_file.endswith(".json"):
-            normalizer.normalize_manifest(
-                args.input_file,
-                n_jobs=args.n_jobs,
-                punct_pre_process=args.punct_pre_process,
-                punct_post_process=args.punct_post_process,
-                batch_size=args.batch_size,
-                text_field=args.manifest_text_field,
-                output_field=args.output_field,
-                output_filename=args.output_file,
-                verbose=args.verbose,
-            )
-
-        else:
-            logger.info("Loading data: " + args.input_file)
-            data = load_file(args.input_file)
-
-            logger.info("- Data: " + str(len(data)) + " sentences")
-            normalizer_prediction = normalizer.normalize_list(
-                data,
-                verbose=args.verbose,
-                punct_pre_process=args.punct_pre_process,
-                punct_post_process=args.punct_post_process,
-            )
-            if args.output_file:
-                write_file(args.output_file, normalizer_prediction)
-                logger.info(f"- Normalized. Writing out to {args.output_file}")
-            else:
-                logger.info(normalizer_prediction)
-
-    logger.info(f"Execution time: {perf_counter() - start_time:.02f} sec")

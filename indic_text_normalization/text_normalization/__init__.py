@@ -13,4 +13,3 @@
 # limitations under the License.
 
 from indic_text_normalization.text_normalization.normalize import Normalizer
-from indic_text_normalization.text_normalization.normalize_with_audio import NormalizerWithAudio
