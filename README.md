@@ -2,7 +2,7 @@
 
 A production-ready, comprehensive Python package for text normalization across multiple Indian languages, built on Weighted Finite-State Transducers (WFST) using Pynini.
 
-> **Note:** This project is an extension of [NVIDIA NeMo Text Processing](https://github.com/NVIDIA/NeMo-text-processing), focused on providing comprehensive support for Indic languages. It maintains the same architecture and API while adding specialized language modules for 19 Indian languages.
+> **Note:** This project is an extension of [NVIDIA NeMo Text Processing](https://github.com/NVIDIA/NeMo-text-processing), focused on providing comprehensive support for Indic languages. It maintains the same architecture and a similar API while adding specialized language modules for 19 Indian languages.
 
 ## Overview
 
