@@ -74,10 +74,7 @@ uv venv
 source .venv/bin/activate  # On macOS/Linux
 
 # Install pynini with proper compiler flags
-CPLUS_INCLUDE_PATH=/opt/homebrew/include LIBRARY_PATH=/opt/homebrew/lib uv pip install pynini
-
-# Install all dependencies
-uv pip install -r requirements.txt
+CPLUS_INCLUDE_PATH=/opt/homebrew/include LIBRARY_PATH=/opt/homebrew/lib uv pip install -e .
 ```
 
 **Note**: The project uses `pynini>=2.1.6.post1` which is compatible with the latest OpenFST (1.8.4+).
