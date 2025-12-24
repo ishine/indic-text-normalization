@@ -44,7 +44,7 @@ setup(
     ],
     keywords="indic hindi bengali tamil telugu tts asr text-processing text-normalization wfst pynini nemo",
     packages=find_packages(include=["indic_text_normalization", "indic_text_normalization.*"]),
-    python_requires=">=3.9",
+    python_requires=">=3.10,<3.13",
     install_requires=[
         "cdifflib",
         "editdistance",

@@ -54,7 +54,7 @@ Each language module supports normalization of:
 
 ### Prerequisites
 
-- Python 3.10 or 3.11
+- Python 3.10, 3.11, or 3.12
 - For macOS: Homebrew (for installing OpenFST)
 
 ### Method 1: Using `uv` (Recommended for macOS)
@@ -80,7 +80,7 @@ CPLUS_INCLUDE_PATH=/opt/homebrew/include LIBRARY_PATH=/opt/homebrew/lib uv pip i
 uv pip install -r requirements.txt
 ```
 
-**Note**: The project uses `pynini==2.1.7` which is compatible with the latest OpenFST (1.8.4+).
+**Note**: The project uses `pynini>=2.1.6.post1` which is compatible with the latest OpenFST (1.8.4+).
 
 ### Method 2: Using Conda
 
