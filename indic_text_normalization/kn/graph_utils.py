@@ -31,6 +31,29 @@ NEMO_KN_DIGIT = pynini.union("೦", "೧", "೨", "೩", "೪", "೫", "೬", "�
 NEMO_KN_NON_ZERO = pynini.union("೧", "೨", "೩", "೪", "೫", "೬", "೭", "೮", "೯").optimize()
 NEMO_KN_ZERO = "೦"
 
+# Superscript characters for powers/exponents (scientific notation)
+NEMO_SUPERSCRIPT_DIGIT = pynini.union("⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹").optimize()
+NEMO_SUPERSCRIPT_MINUS = "⁻"
+NEMO_SUPERSCRIPT_PLUS = "⁺"
+
+# Mapping from superscript to regular digits/sign
+superscript_to_digit = pynini.string_map(
+    [
+        ("⁰", "0"),
+        ("¹", "1"),
+        ("²", "2"),
+        ("³", "3"),
+        ("⁴", "4"),
+        ("⁵", "5"),
+        ("⁶", "6"),
+        ("⁷", "7"),
+        ("⁸", "8"),
+        ("⁹", "9"),
+    ]
+).optimize()
+
+superscript_to_sign = pynini.string_map([("⁻", "-"), ("⁺", "+")]).optimize()
+
 KN_DEDH = "ಒಂದೂವರೆ"  # 1.5
 KN_DHAI = "ಎರಡೂವರೆ"  # 2.5
 KN_SAVVA = "ಸವ್ವ"  # quarter more (1.25)
@@ -165,7 +188,9 @@ class GraphFst:
         Returns:
             Fst: fst
         """
-        return pynutil.insert(f"{self.name} {{ ") + fst + pynutil.insert(" }}")
+        # Must match `TokenParser` expectations: one closing brace for the class.
+        # (Hindi implementation uses ` " }" `.)
+        return pynutil.insert(f"{self.name} {{ ") + fst + pynutil.insert(" }")
 
     def delete_tokens(self, fst) -> 'pynini.FstLike':
         """

@@ -68,9 +68,9 @@ class MathFst(GraphFst):
             + pynutil.delete("\"")
         )
 
-        operator2 = (
+        operator_two = (
             delete_space
-            + pynutil.delete("operator2:")
+            + pynutil.delete("operator_two:")
             + delete_space
             + pynutil.delete("\"")
             + pynini.closure(NEMO_NOT_QUOTE, 1)
@@ -82,7 +82,7 @@ class MathFst(GraphFst):
 
         # Extended expression: left operator middle operator2 right
         extended_expression = (
-            left + insert_space + operator + insert_space + middle + insert_space + operator2 + insert_space + right
+            left + insert_space + operator + insert_space + middle + insert_space + operator_two + insert_space + right
         )
 
         graph = simple_expression | extended_expression

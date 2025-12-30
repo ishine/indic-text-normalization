@@ -15,7 +15,7 @@
 import pynini
 from pynini.lib import pynutil
 
-from indic_text_normalization.kn.graph_utils import GraphFst, NEMO_DIGIT, insert_space
+from indic_text_normalization.kn.graph_utils import GraphFst, NEMO_DIGIT, NEMO_KN_DIGIT, insert_space
 from indic_text_normalization.kn.utils import get_abs_path
 
 # Convert Arabic digits (0-9) to Kannada digits (೦-೯)
@@ -24,6 +24,12 @@ arabic_to_kannada_digit = pynini.string_map([
     ("5", "೫"), ("6", "೬"), ("7", "೭"), ("8", "೮"), ("9", "೯")
 ]).optimize()
 arabic_to_kannada_number = pynini.closure(arabic_to_kannada_digit).optimize()
+
+# Delete commas inside digit sequences (e.g., 1,000,001 or ೧,೦೦೦,೦೦೧)
+any_digit = pynini.union(NEMO_DIGIT, NEMO_KN_DIGIT).optimize()
+delete_commas = (
+    any_digit + pynini.closure(pynini.closure(pynutil.delete(","), 0, 1) + any_digit)
+).optimize()
 
 
 class CardinalFst(GraphFst):
@@ -158,12 +164,21 @@ class CardinalFst(GraphFst):
             | graph_leading_zero
         ).optimize()
 
+        # Allow comma-separated inputs by deleting commas before applying the number graph.
+        # Kannada digits with commas
+        kannada_with_commas = pynini.compose(delete_commas, kannada_final_graph).optimize()
+        kannada_final_with_commas = pynutil.add_weight(kannada_with_commas, -0.1) | kannada_final_graph
+
         # Arabic digits: convert to Kannada, then apply the same graph
         arabic_digit_input = pynini.closure(NEMO_DIGIT, 1)
         arabic_final_graph = pynini.compose(arabic_digit_input, arabic_to_kannada_number @ kannada_final_graph).optimize()
 
+        # Arabic digits with commas: delete commas first, then convert and apply the same graph
+        arabic_with_commas = pynini.compose(delete_commas, arabic_to_kannada_number @ kannada_final_graph).optimize()
+        arabic_final_with_commas = pynutil.add_weight(arabic_with_commas, -0.1) | arabic_final_graph
+
         # Combine both Kannada and Arabic digit paths
-        final_graph = kannada_final_graph | arabic_final_graph
+        final_graph = kannada_final_with_commas | arabic_final_with_commas
 
         optional_minus_graph = pynini.closure(pynutil.insert("negative: ") + pynini.cross("-", "\"true\" "), 0, 1)
 

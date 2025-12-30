@@ -19,8 +19,11 @@ import pynini
 from pynini.lib import pynutil
 
 from indic_text_normalization.kn.graph_utils import (
+    NEMO_DIGIT,
     NEMO_SPACE,
     NEMO_WHITE_SPACE,
+    NEMO_KN_DIGIT,
+    NEMO_SIGMA,
     GraphFst,
     delete_extra_space,
     delete_space,
@@ -38,6 +41,8 @@ from indic_text_normalization.kn.taggers.telephone import TelephoneFst
 from indic_text_normalization.kn.taggers.time import TimeFst
 from indic_text_normalization.kn.taggers.whitelist import WhiteListFst
 from indic_text_normalization.kn.taggers.word import WordFst
+from indic_text_normalization.kn.taggers.power import PowerFst
+from indic_text_normalization.kn.taggers.scientific import ScientificFst
 
 
 class ClassifyFst(GraphFst):
@@ -107,6 +112,12 @@ class ClassifyFst(GraphFst):
             math = MathFst(cardinal=cardinal, deterministic=deterministic)
             math_graph = math.fst
 
+            power = PowerFst(cardinal=cardinal, deterministic=deterministic)
+            power_graph = power.fst
+
+            scientific = ScientificFst(cardinal=cardinal, deterministic=deterministic)
+            scientific_graph = scientific.fst
+
             whitelist_graph = WhiteListFst(
                 input_case=input_case, deterministic=deterministic, input_file=whitelist
             ).fst
@@ -126,11 +137,13 @@ class ClassifyFst(GraphFst):
                 | pynutil.add_weight(time_graph, 0.7)  # High priority for time (before cardinals!)
                 | pynutil.add_weight(date_graph, 0.8)
                 | pynutil.add_weight(decimal_graph, 0.85)
+                | pynutil.add_weight(scientific_graph, 0.86)  # 10.1-e5 style
                 | pynutil.add_weight(fraction_graph, 0.85)
                 | pynutil.add_weight(money_graph, 0.85)
                 | pynutil.add_weight(measure_graph, 0.85)
                 | pynutil.add_weight(ordinal_graph, 0.9)  # Before cardinals
                 | pynutil.add_weight(cardinal_graph, 0.95)  # Before math
+                | pynutil.add_weight(power_graph, 0.97)  # Before math: scientific superscripts like 10⁻⁷
                 | pynutil.add_weight(math_graph, 1.0)  # Math expressions after cardinals
             )
 
@@ -164,7 +177,15 @@ class ClassifyFst(GraphFst):
             graph = delete_space + graph + delete_space
             graph = pynini.union(graph, punct)
 
-            self.fst = graph.optimize()
+            # Replace hyphen used as a joiner between digits and Kannada letters with a SPACE, e.g.
+            #   "3.14-ಅಲ್ಲಿ" -> "3.14 ಅಲ್ಲಿ"
+            # This prevents "π = 3.1415...-ಅಲ್ಲಿ" from being glued into one token.
+            kn_block = pynini.union(*[chr(i) for i in range(0x0C80, 0x0D00)]).optimize()
+            left_ctx = pynini.union(NEMO_DIGIT, NEMO_KN_DIGIT).optimize()
+            right_ctx = kn_block
+            joiner_hyphen_to_space = pynini.cdrewrite(pynini.cross("-", " "), left_ctx, right_ctx, NEMO_SIGMA)
+
+            self.fst = (joiner_hyphen_to_space @ graph).optimize()
 
             if far_file:
                 generator_main(far_file, {"tokenize_and_classify": self.fst})
