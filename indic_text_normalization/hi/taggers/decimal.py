@@ -32,6 +32,15 @@ arabic_to_hindi_digit = pynini.string_map([
 ]).optimize()
 arabic_to_hindi_number = pynini.closure(arabic_to_hindi_digit).optimize()
 
+# Create a graph that deletes commas from digit sequences
+# This handles Indian number format where commas are separators (e.g., 1,000,001.50)
+any_digit = pynini.union(NEMO_DIGIT, NEMO_HI_DIGIT)
+# Pattern: digit (comma? digit)* - accepts digits with optional commas, deletes commas
+delete_commas = (
+    any_digit
+    + pynini.closure(pynini.closure(pynutil.delete(","), 0, 1) + any_digit)
+).optimize()
+
 
 def get_quantity(decimal: 'pynini.FstLike', cardinal_up_to_hundred: 'pynini.FstLike') -> 'pynini.FstLike':
     """
@@ -109,8 +118,20 @@ class DecimalFst(GraphFst):
             arabic_to_hindi_number @ cardinal_graph
         ).optimize()
         
-        # Combined integer graph (supports both Hindi and Arabic digits)
-        integer_graph = hindi_integer_graph | arabic_integer_graph
+        # Add comma support for integer parts
+        # Hindi with commas
+        hindi_integer_with_commas = pynini.compose(delete_commas, cardinal_graph).optimize()
+        hindi_integer_combined = pynutil.add_weight(hindi_integer_with_commas, -0.1) | hindi_integer_graph
+        
+        # Arabic with commas
+        arabic_integer_with_commas = pynini.compose(
+            delete_commas,
+            arabic_to_hindi_number @ cardinal_graph
+        ).optimize()
+        arabic_integer_combined = pynutil.add_weight(arabic_integer_with_commas, -0.1) | arabic_integer_graph
+        
+        # Combined integer graph (supports both Hindi and Arabic digits, with and without commas)
+        integer_graph = hindi_integer_combined | arabic_integer_combined
 
         self.graph_fractional = pynutil.insert("fractional_part: \"") + self.graph + pynutil.insert("\"")
         self.graph_integer = pynutil.insert("integer_part: \"") + integer_graph + pynutil.insert("\"")

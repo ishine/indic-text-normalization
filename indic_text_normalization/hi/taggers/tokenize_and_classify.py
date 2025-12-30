@@ -44,6 +44,7 @@ from indic_text_normalization.hi.taggers.telephone import TelephoneFst
 from indic_text_normalization.hi.taggers.time import TimeFst
 from indic_text_normalization.hi.taggers.whitelist import WhiteListFst
 from indic_text_normalization.hi.taggers.word import WordFst
+from indic_text_normalization.hi.taggers.power import PowerFst
 from indic_text_normalization.hi.verbalizers.date import DateFst as vDateFst
 from indic_text_normalization.hi.verbalizers.ordinal import OrdinalFst as vOrdinalFst
 from indic_text_normalization.hi.verbalizers.time import TimeFst as vTimeFst
@@ -135,6 +136,11 @@ class ClassifyFst(GraphFst):
             logging.debug(f"math: {time.time() - start_time:.2f}s -- {math_graph.num_states()} nodes")
 
             start_time = time.time()
+            power = PowerFst(cardinal=cardinal, deterministic=deterministic)
+            power_graph = power.fst
+            logging.debug(f"power: {time.time() - start_time:.2f}s -- {power_graph.num_states()} nodes")
+
+            start_time = time.time()
             whitelist = WhiteListFst(
                 input_case=input_case, deterministic=deterministic, input_file=whitelist
             )
@@ -204,6 +210,7 @@ class ClassifyFst(GraphFst):
                 | pynutil.add_weight(electronic_graph, 1.11)
                 | pynutil.add_weight(fraction_graph, 1.1)
                 | pynutil.add_weight(math_graph, 1.1)
+                | pynutil.add_weight(power_graph, 1.09)  # Higher priority for scientific notation
                 | pynutil.add_weight(range_graph, 1.1)
                 | pynutil.add_weight(serial_graph, 1.12)  # should be higher than the rest of the classes
                 | pynutil.add_weight(graph_range_money, 1.1)
