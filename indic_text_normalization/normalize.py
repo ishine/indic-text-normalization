@@ -161,7 +161,12 @@ class Normalizer:
         
         self.max_number_of_permutations_per_split = max_number_of_permutations_per_split
         self.parser = TokenParser()
-        self.moses_detokenizer = MosesDetokenizer(lang=lang)
+        
+        # Moses detokenizer only works well for European languages, not Indic scripts
+        # For Indic languages, we rely on post_process_punct() instead
+        self.moses_detokenizer = None
+        if lang == 'en':
+            self.moses_detokenizer = MosesDetokenizer(lang=lang)
 
     def normalize_list(
         self,
@@ -347,8 +352,9 @@ class Normalizer:
             output = self.post_process(output)
 
         if punct_post_process:
-            # do post-processing based on Moses detokenizer
-            output = self.moses_detokenizer.detokenize([output], unescape=False)
+            # Moses detokenizer only for English; Indic languages use post_process_punct() only
+            if self.moses_detokenizer is not None:
+                output = self.moses_detokenizer.detokenize([output], unescape=False)
             output = post_process_punct(input=original_text, normalized_text=output)
         return output
 

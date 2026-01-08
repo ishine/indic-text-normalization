@@ -23,6 +23,7 @@ from indic_text_normalization.kn.graph_utils import (
     NEMO_SPACE,
     NEMO_WHITE_SPACE,
     NEMO_KN_DIGIT,
+    NEMO_NOT_SPACE,
     NEMO_SIGMA,
     GraphFst,
     delete_extra_space,
@@ -43,6 +44,7 @@ from indic_text_normalization.kn.taggers.whitelist import WhiteListFst
 from indic_text_normalization.kn.taggers.word import WordFst
 from indic_text_normalization.kn.taggers.power import PowerFst
 from indic_text_normalization.kn.taggers.scientific import ScientificFst
+from indic_text_normalization.kn.taggers.serial import SerialFst
 
 
 class ClassifyFst(GraphFst):
@@ -128,6 +130,9 @@ class ClassifyFst(GraphFst):
             telephone = TelephoneFst()
             telephone_graph = telephone.fst
 
+            serial = SerialFst(cardinal=cardinal, ordinal=ordinal, deterministic=deterministic)
+            serial_graph = serial.fst
+
             # Prioritize telephone numbers and specific patterns over cardinals
             # to avoid incorrect matching (e.g., telephone numbers as cardinals)
             # Lower weight = higher priority in pynini
@@ -145,6 +150,7 @@ class ClassifyFst(GraphFst):
                 | pynutil.add_weight(cardinal_graph, 0.95)  # Before math
                 | pynutil.add_weight(power_graph, 0.97)  # Before math: scientific superscripts like 10⁻⁷
                 | pynutil.add_weight(math_graph, 1.0)  # Math expressions after cardinals
+                | pynutil.add_weight(serial_graph, 1.1)  # Serial numbers
             )
 
             word_graph = WordFst(punctuation=punctuation, deterministic=deterministic).fst
@@ -185,7 +191,22 @@ class ClassifyFst(GraphFst):
             right_ctx = kn_block
             joiner_hyphen_to_space = pynini.cdrewrite(pynini.cross("-", " "), left_ctx, right_ctx, NEMO_SIGMA)
 
-            self.fst = (joiner_hyphen_to_space @ graph).optimize()
+            # Also ensure glued equals patterns like "π=3.1415" tokenize cleanly without enumerating symbols.
+            # Only apply when the left side is NOT a digit (so we don't change "10-2=8" tight math behavior).
+            non_digit_left = pynini.difference(
+                NEMO_NOT_SPACE, pynini.union(NEMO_DIGIT, NEMO_KN_DIGIT)
+            ).optimize()
+            digit_right = pynini.union(NEMO_DIGIT, NEMO_KN_DIGIT).optimize()
+            equals_to_spaced = pynini.cdrewrite(pynini.cross("=", " = "), non_digit_left, digit_right, NEMO_SIGMA)
+
+            # Also separate em-dash glued to a following number, e.g. "—3.14" so decimals can match.
+            emdash_to_spaced = pynini.cdrewrite(pynini.cross("—", "— "), "", digit_right, NEMO_SIGMA)
+
+            # And convert em-dash used as a joiner between digits and Kannada letters into a space:
+            #   "3.14—ಮತ್ತು" -> "3.14 ಮತ್ತು"
+            emdash_joiner_to_space = pynini.cdrewrite(pynini.cross("—", " "), digit_right, kn_block, NEMO_SIGMA)
+
+            self.fst = (emdash_joiner_to_space @ emdash_to_spaced @ equals_to_spaced @ joiner_hyphen_to_space @ graph).optimize()
 
             if far_file:
                 generator_main(far_file, {"tokenize_and_classify": self.fst})

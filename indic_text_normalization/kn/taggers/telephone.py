@@ -32,9 +32,7 @@ KN_ZERO_DIGIT = pynini.union("0", "೦")
 KN_MOBILE_START_DIGITS = pynini.union("೬", "೭", "೮", "೯", "6", "7", "8", "9").optimize()
 KN_LANDLINE_START_DIGITS = pynini.union("೨", "೩", "೪", "೬", "2", "3", "4", "6").optimize()
 
-delete_zero = pynutil.delete(KN_ZERO_DIGIT)
-delete_zero_optional = pynini.closure(delete_zero, 0, 1)
-insert_shunya = pynutil.insert('ಸೊನ್ನೆ') + insert_space
+leading_zero = pynini.closure(pynini.cross(KN_ZERO_DIGIT, "ಸೊನ್ನೆ") + insert_space, 0, 1)
 
 # Load the number mappings from the TSV file
 digit_to_word = pynini.string_file(get_abs_path("data/telephone/number.tsv"))
@@ -46,14 +44,32 @@ credit_context = pynini.string_file(get_abs_path("data/telephone/credit_context.
 pincode_context = pynini.string_file(get_abs_path("data/telephone/pincode_context.tsv"))
 
 # Reusable optimized graph for any digit token
-num_token = pynini.union(digit_to_word, digits, zero).optimize()
+ascii_digit_to_word = pynini.string_map(
+    [
+        ("0", "ಸೊನ್ನೆ"),
+        ("1", "ಒಂದು"),
+        ("2", "ಎರಡು"),
+        ("3", "ಮೂರು"),
+        ("4", "ನಾಲ್ಕು"),
+        ("5", "ಐದು"),
+        ("6", "ಆರು"),
+        ("7", "ಏಳು"),
+        ("8", "ಎಂಟು"),
+        ("9", "ಒಂಬತ್ತು"),
+    ]
+).optimize()
+num_token = pynini.union(digit_to_word, digits, zero, ascii_digit_to_word).optimize()
 
 
 def generate_mobile(context_keywords: pynini.Fst) -> pynini.Fst:
     context_before, context_after = get_context(context_keywords)
 
     # Filter cardinals to only include allowed digits
-    mobile_start_digit = pynini.union(KN_MOBILE_START_DIGITS @ digits, KN_MOBILE_START_DIGITS @ digit_to_word)
+    mobile_start_digit = pynini.union(
+        KN_MOBILE_START_DIGITS @ digits, 
+        KN_MOBILE_START_DIGITS @ digit_to_word,
+        KN_MOBILE_START_DIGITS @ ascii_digit_to_word
+    )
 
     country_code_digits = pynini.closure(num_token + insert_space, 1, 3)
     country_code = (
@@ -81,8 +97,7 @@ def generate_mobile(context_keywords: pynini.Fst) -> pynini.Fst:
     number_without_country = (
         pynutil.insert("number_part: \"")
         + context_before
-        + delete_zero_optional
-        + insert_shunya
+        + leading_zero
         + number_part
         + context_after
         + pynutil.insert("\" ")
@@ -105,10 +120,14 @@ def get_landline(std_length: int, context_keywords: pynini.Fst) -> pynini.Fst:
     context_before, context_after = get_context(context_keywords)
 
     # Filter cardinals to only include allowed digits
-    landline_start_digit = pynini.union(KN_LANDLINE_START_DIGITS @ digits, KN_LANDLINE_START_DIGITS @ digit_to_word)
+    landline_start_digit = pynini.union(
+        KN_LANDLINE_START_DIGITS @ digits, 
+        KN_LANDLINE_START_DIGITS @ digit_to_word,
+        KN_LANDLINE_START_DIGITS @ ascii_digit_to_word
+    )
 
     std_code_graph = (
-        delete_zero_optional + insert_shunya + pynini.closure(num_token + insert_space, std_length, std_length)
+        leading_zero + pynini.closure(num_token + insert_space, std_length, std_length)
     )
 
     landline_digit_count = 9 - std_length
@@ -121,7 +140,7 @@ def get_landline(std_length: int, context_keywords: pynini.Fst) -> pynini.Fst:
     separator_optional = pynini.closure(pynini.union(pynini.cross("-", ""), pynini.cross(".", "")), 0, 1)
 
     std_code_in_brackets = (
-        delete_zero_optional
+        leading_zero
         + delete_space
         + pynutil.delete("(")
         + pynini.closure(delete_space, 0, 1)
