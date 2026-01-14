@@ -25,6 +25,7 @@ from indic_text_normalization.kn.graph_utils import (
     NEMO_KN_DIGIT,
     NEMO_NOT_SPACE,
     NEMO_SIGMA,
+    NEMO_ALPHA,
     GraphFst,
     delete_extra_space,
     delete_space,
@@ -206,7 +207,13 @@ class ClassifyFst(GraphFst):
             #   "3.14—ಮತ್ತು" -> "3.14 ಮತ್ತು"
             emdash_joiner_to_space = pynini.cdrewrite(pynini.cross("—", " "), digit_right, kn_block, NEMO_SIGMA)
 
-            self.fst = (emdash_joiner_to_space @ emdash_to_spaced @ equals_to_spaced @ joiner_hyphen_to_space @ graph).optimize()
+            # Insert space between mathematical symbols (√, ∑, ∫, etc.) and following digits/letters
+            # Example: "√2" -> "√ 2", "∑x" -> "∑ x"
+            math_symbols = pynini.union("√", "∑", "∏", "∫", "∬", "∭", "∮", "∂", "∇").optimize()
+            following_char = pynini.union(NEMO_DIGIT, NEMO_KN_DIGIT, NEMO_ALPHA).optimize()
+            math_symbol_to_spaced = pynini.cdrewrite(pynutil.insert(" "), math_symbols, following_char, NEMO_SIGMA)
+
+            self.fst = (math_symbol_to_spaced @ emdash_joiner_to_space @ emdash_to_spaced @ equals_to_spaced @ joiner_hyphen_to_space @ graph).optimize()
 
             if far_file:
                 generator_main(far_file, {"tokenize_and_classify": self.fst})

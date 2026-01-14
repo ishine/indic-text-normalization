@@ -20,6 +20,7 @@ import pynini
 from pynini.lib import pynutil
 
 from indic_text_normalization.hi.graph_utils import (
+    NEMO_ALPHA,
     NEMO_DIGIT,
     NEMO_HI_DIGIT,
     NEMO_NOT_SPACE,
@@ -286,7 +287,13 @@ class ClassifyFst(GraphFst):
             #   "3.14—और" -> "3.14 और"
             emdash_joiner_to_space = pynini.cdrewrite(pynini.cross("—", " "), digit_right, hi_block, NEMO_SIGMA)
 
-            self.fst = (emdash_joiner_to_space @ emdash_to_spaced @ equals_to_spaced @ joiner_hyphen_to_space @ graph).optimize()
+            # Insert space between mathematical symbols (√, ∑, ∫, etc.) and following digits/letters
+            # Example: "√2" -> "√ 2", "∑x" -> "∑ x"
+            math_symbols = pynini.union("√", "∑", "∏", "∫", "∬", "∭", "∮", "∂", "∇").optimize()
+            following_char = pynini.union(NEMO_DIGIT, NEMO_HI_DIGIT, NEMO_ALPHA).optimize()
+            math_symbol_to_spaced = pynini.cdrewrite(pynutil.insert(" "), math_symbols, following_char, NEMO_SIGMA)
+
+            self.fst = (math_symbol_to_spaced @ emdash_joiner_to_space @ emdash_to_spaced @ equals_to_spaced @ joiner_hyphen_to_space @ graph).optimize()
             logging.debug(f"final graph optimization: {time.time() - start_time:.2f}s -- {self.fst.num_states()} nodes")
 
             if far_file:

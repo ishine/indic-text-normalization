@@ -24,6 +24,7 @@ from indic_text_normalization.ta.graph_utils import (
     NEMO_TA_DIGIT,
     NEMO_SIGMA,
     NEMO_WHITE_SPACE,
+    NEMO_ALPHA,
     GraphFst,
     delete_extra_space,
     delete_space,
@@ -181,7 +182,13 @@ class ClassifyFst(GraphFst):
             right_ctx = ta_block
             joiner_hyphen_to_space = pynini.cdrewrite(pynini.cross("-", " "), left_ctx, right_ctx, NEMO_SIGMA)
 
-            self.fst = (joiner_hyphen_to_space @ graph).optimize()
+            # Insert space between mathematical symbols (√, ∑, ∫, etc.) and following digits/letters
+            # Example: "√2" -> "√ 2", "∑x" -> "∑ x"
+            math_symbols = pynini.union("√", "∑", "∏", "∫", "∬", "∭", "∮", "∂", "∇").optimize()
+            following_char = pynini.union(NEMO_DIGIT, NEMO_TA_DIGIT, NEMO_ALPHA).optimize()
+            math_symbol_to_spaced = pynini.cdrewrite(pynutil.insert(" "), math_symbols, following_char, NEMO_SIGMA)
+
+            self.fst = (math_symbol_to_spaced @ joiner_hyphen_to_space @ graph).optimize()
 
             if far_file:
                 generator_main(far_file, {"tokenize_and_classify": self.fst})
